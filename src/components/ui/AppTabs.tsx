@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export interface TabItem {
@@ -16,16 +15,16 @@ interface AppTabsProps {
 
 export const AppTabs: React.FC<AppTabsProps> = ({ tabs, activeTabId, onTabChange }) => {
     return (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5">
             {tabs.map((tab) => {
                 const isActive = tab.id === activeTabId;
                 return (
                     <button
                         key={tab.id}
                         onClick={() => onTabChange(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-bold rounded-xl transition-all cursor-pointer ${isActive
-                            ? 'bg-[#15803d] text-white shadow-xs'
-                            : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        className={`shrink-0 flex items-center gap-2 px-4 py-2 text-xs md:text-sm rounded-xl transition-all cursor-pointer select-none ${isActive
+                            ? 'bg-[#15803d] text-white shadow-xs font-bold'
+                            : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 font-semibold'
                             }`}
                     >
                         {tab.icon}

@@ -1,20 +1,19 @@
-// src/components/layout/AppSidebar.tsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard,
     Users,
+    Sliders,
     Package,
-    QrCode,
-    Truck,
+    Activity,
+    FileText,
     MapPin,
     Calendar,
-    FileText,
     CheckCircle,
     BookOpen,
+    QrCode,
+    Truck,
     ShoppingBag,
-    BarChart2,
-    Sliders,
 } from 'lucide-react';
 import type { UserRole } from '../../types';
 
@@ -32,17 +31,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
     const menuConfig: Record<UserRole, SidebarMenuItem[]> = {
         ADMIN: [
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/admin/dashboard' },
-            { icon: Users, label: 'Quản lý tài khoản', path: '/admin/users' },
+            { icon: Users, label: 'Quản lý tài khoản', path: '/admin/accounts' },
             { icon: Sliders, label: 'Phân quyền Role', path: '/admin/roles' },
-            { icon: Package, label: 'Blockchain Smart Contract', path: '/admin/smart-contract' },
-            { icon: BarChart2, label: 'Giám sát Giao dịch', path: '/admin/transactions' },
-            { icon: FileText, label: 'Nhật ký Hệ thống', path: '/admin/logs' },
+            { icon: Package, label: 'Blockchain Smart Contract', path: '/admin/blockchain-contracts' },
+            { icon: Activity, label: 'Giám sát Giao dịch', path: '/admin/blockchain-transactions' },
+            { icon: FileText, label: 'Nhật ký Hệ thống', path: '/admin/system-logs' },
         ],
         COOPERATIVE: [
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/cooperative/dashboard' },
             { icon: MapPin, label: 'Quản lý Vùng trồng', path: '/cooperative/farms' },
             { icon: Package, label: 'Quản lý Kho', path: '/cooperative/inventory' },
-            { icon: BarChart2, label: 'Quy trình sản xuất', path: '/cooperative/process' },
+            { icon: Activity, label: 'Quy trình sản xuất', path: '/cooperative/process' },
             { icon: Calendar, label: 'Lập kế hoạch', path: '/cooperative/plan' },
             { icon: FileText, label: 'Nhật ký sản xuất', path: '/cooperative/logs' },
             { icon: QrCode, label: 'Mã QR & Vận chuyển', path: '/cooperative/shipment' },
@@ -51,14 +50,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/farmer/dashboard' },
             { icon: Calendar, label: 'Lô phân công', path: '/farmer/batches' },
             { icon: FileText, label: 'Nhật ký canh tác', path: '/farmer/logs' },
-            { icon: BarChart2, label: 'Tiến độ công việc', path: '/farmer/progress' },
+            { icon: Activity, label: 'Tiến độ công việc', path: '/farmer/progress' },
             { icon: CheckCircle, label: 'Xác nhận thu hoạch', path: '/farmer/harvest' },
             { icon: BookOpen, label: 'Hướng dẫn quy trình', path: '/farmer/guides' },
         ],
         PROCESSOR: [
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/processor/dashboard' },
             { icon: Package, label: 'Nhập kho nguyên liệu', path: '/processor/inbound' },
-            { icon: BarChart2, label: 'Dây chuyền chế biến', path: '/processor/processing' },
+            { icon: Activity, label: 'Dây chuyền chế biến', path: '/processor/processing' },
             { icon: CheckCircle, label: 'Kiểm định chất lượng', path: '/processor/inspection' },
             { icon: QrCode, label: 'Đóng gói & Tem QR', path: '/processor/packaging' },
         ],
@@ -68,7 +67,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
             { icon: CheckCircle, label: 'Kiểm tra chất lượng', path: '/retailer/qa' },
             { icon: ShoppingBag, label: 'Kệ hàng / Bán lẻ', path: '/retailer/shelves' },
             { icon: QrCode, label: 'Mã QR sản phẩm', path: '/retailer/qr-codes' },
-            { icon: BarChart2, label: 'Báo cáo bán hàng', path: '/retailer/reports' },
+            { icon: Activity, label: 'Báo cáo bán hàng', path: '/retailer/reports' },
         ],
         GUEST: [],
     };

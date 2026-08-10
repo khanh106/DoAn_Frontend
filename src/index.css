@@ -5,3 +5,8 @@
     background-color: #F1F0FE;
   }
 }
+
+html {
+  font-size: 16.8px;
+  /* Mặc định là 16px. Đổi thành 17px hoặc 18px để chữ to hơn */
+}

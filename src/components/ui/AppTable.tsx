@@ -1,4 +1,3 @@
-// src/components/ui/AppTable.tsx
 import React from 'react';
 import { clsx } from 'clsx';
 
@@ -19,7 +18,7 @@ interface AppTableProps<T> {
 export function AppTable<T>({ columns, data, showSTT = true }: AppTableProps<T>) {
     return (
         <div className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto min-h-[260px]">
                 <table className="w-full text-left text-xs md:text-sm text-slate-800 border-collapse">
                     {/* HEADER CHUẨN MÀU TÍM NHẠT #F1F0FE NHƯ TRONG 7 ẢNH THỰC TẾ */}
                     <thead className="bg-[#F1F0FE] text-slate-900 font-bold border-b border-slate-200">

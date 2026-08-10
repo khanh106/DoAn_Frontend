@@ -1,7 +1,15 @@
+import { BlockchainContractsPage } from './pages/admin/BlockchainContractsPage';
+import { SystemLogsPage } from './pages/admin/SystemLogsPage';
+
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from './pages/public/LandingPage';
+// src/App.tsx (Đoạn cập nhật route ADMIN)
+import { AccountManagementPage } from './pages/admin/AccountManagementPage';
+import { RoleManagementPage } from './pages/admin/modals/RoleManagementPage';
 
+import { TransactionMonitoringPage } from './pages/admin/TransactionMonitoringPage';
 // Pages & Components
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
@@ -39,10 +47,6 @@ export const App: React.FC = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-
-        {/* PUBLIC ROUTES */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/pending" element={<AccountPendingPage />} />
         <Route path="/auth/locked" element={<AccountLockedPage />} />
 
@@ -56,10 +60,16 @@ export const App: React.FC = () => {
         {/* PROTECTED ROUTES - PORTAL 1: ADMIN */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
           <Route element={<AdminLayout />}>
-            <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
-            <Route path="/admin/dashboard" element={<AdminAccountPage />} />
-            <Route path="/admin/users" element={<AdminAccountPage />} />
-            <Route path="/admin/*" element={<AdminAccountPage />} />
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/accounts" element={<AccountManagementPage />} />
+            <Route path="/admin/users" element={<AccountManagementPage />} />
+            <Route path="/admin/roles" element={<RoleManagementPage />} />
+            <Route path="/admin/blockchain-contracts" element={<BlockchainContractsPage />} />
+            <Route path="/admin/system-logs" element={<SystemLogsPage />} />
+            <Route path="/admin/blockchain-transactions" element={<TransactionMonitoringPage />} />
+            <Route path="/admin/transactions" element={<TransactionMonitoringPage />} />
+            <Route path="/admin/*" element={<AccountManagementPage />} />
           </Route>
         </Route>
 

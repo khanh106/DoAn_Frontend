@@ -1,4 +1,3 @@
-// src/components/ui/AppInput.tsx
 import React from 'react';
 
 interface AppInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
