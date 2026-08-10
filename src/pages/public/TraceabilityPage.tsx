@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AxiosError } from 'axios';
 import { ShieldCheck, Search, X, CheckCircle, ExternalLink, Calendar, MapPin, User, Package } from 'lucide-react';
 import { apiClient } from '../../services/api';
 
-// Interface khớp 100% với PublicTraceResponseDto của Backend API
 export interface PublicTraceResponse {
     targetInfo?: {
         id: string;
@@ -52,30 +52,32 @@ export const TraceabilityPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [showCertModal, setShowCertModal] = useState<boolean>(false);
 
-    // Gọi API Public Traceability: GET /api/v1/public/trace/{code}
-    const handleTrace = async (code: string) => {
+    const handleTrace = useCallback(async (code: string) => {
         if (!code.trim()) return;
         setLoading(true);
         setError(null);
         try {
             const response = await apiClient.get<PublicTraceResponse>(`/v1/public/trace/${encodeURIComponent(code.trim())}`);
             setTraceData(response.data);
-        } catch (err: any) {
-            console.error('Lỗi truy xuất nguồn gốc:', err);
-            setError(err?.response?.data?.message || `Không tìm thấy thông tin sản phẩm/lô với mã '${code}'.`);
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            console.error('Lỗi truy xuất nguồn gốc:', errorObj);
+            setError(errorObj.response?.data?.message || `Không tìm thấy thông tin sản phẩm/lô với mã '${code}'.`);
             setTraceData(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        handleTrace(searchCode);
-    }, []);
+        const initTrace = async () => {
+            await handleTrace(searchCode);
+        };
+        void initTrace();
+    }, [handleTrace, searchCode]);
 
     return (
         <div className="min-h-screen bg-[#F4F5FA] p-6 relative font-sans">
-            {/* Header Truy Xuất */}
             <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                     <svg className="w-9 h-9" viewBox="0 0 100 100" fill="none">
@@ -99,7 +101,6 @@ export const TraceabilityPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Thanh Tìm Kiếm Mã Lô / QR Code */}
             <div className="max-w-5xl mx-auto mb-6 bg-white p-4 rounded-2xl shadow-xs border border-slate-200 flex gap-3">
                 <input
                     type="text"
@@ -118,21 +119,18 @@ export const TraceabilityPage: React.FC = () => {
                 </button>
             </div>
 
-            {/* Thông báo lỗi */}
             {error && (
                 <div className="max-w-5xl mx-auto mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold flex items-center gap-2">
                     <span>⚠️ {error}</span>
                 </div>
             )}
 
-            {/* Loading & Result Container */}
             {loading ? (
                 <div className="max-w-5xl mx-auto p-12 text-center text-slate-500 bg-white rounded-3xl border border-slate-200 font-medium shadow-xs">
                     Đang truy ngược dữ liệu từ Smart Contract Blockchain & Database...
                 </div>
             ) : traceData ? (
                 <div className="max-w-5xl mx-auto space-y-6">
-                    {/* Thông tin chính của Sản Phẩm / Lô */}
                     <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row justify-between gap-6">
                         <div className="space-y-2">
                             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold uppercase tracking-wider">
@@ -154,7 +152,6 @@ export const TraceabilityPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Giấy kiểm định rút gọn */}
                         {traceData.inspection && (
                             <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex flex-col justify-between self-start md:min-w-[260px]">
                                 <div>
@@ -178,9 +175,7 @@ export const TraceabilityPage: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Khung Chi tiết: Lịch sử Canh tác & Blockchain On-chain */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Cột 1: Nhật Ký Canh Tác */}
                         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
                             <h3 className="font-extrabold text-slate-900 uppercase text-sm flex items-center gap-2 border-b border-slate-100 pb-3">
                                 <Calendar className="w-4 h-4 text-green-600" /> Nhật Ký Canh Tác Thực Tế
@@ -206,7 +201,6 @@ export const TraceabilityPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Cột 2: Lịch sử Giao dịch Blockchain (On-chain) */}
                         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
                             <h3 className="font-extrabold text-slate-900 uppercase text-sm flex items-center gap-2 border-b border-slate-100 pb-3">
                                 <ShieldCheck className="w-4 h-4 text-orange-500" /> Lịch Sử Giao Dịch Blockchain
@@ -238,7 +232,6 @@ export const TraceabilityPage: React.FC = () => {
                 </div>
             ) : null}
 
-            {/* Modal Chứng Nhận Kiểm Định */}
             {showCertModal && traceData?.inspection && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl relative space-y-4 border border-slate-100">

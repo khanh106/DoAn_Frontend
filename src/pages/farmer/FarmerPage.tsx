@@ -1,12 +1,11 @@
-// src/pages/farmer/FarmerPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AxiosError } from 'axios';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
 import { apiClient } from '../../services/api';
 import { RefreshCw, CheckCircle, Plus } from 'lucide-react';
 
-// DTO khớp 100% với AssignedBatchDto của Backend .NET API
 export interface AssignedBatchResponse {
     batchId: string;
     batchCode: string;
@@ -27,34 +26,37 @@ export const FarmerPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
-    // Gọi API Backend: GET /api/v1/farmer/batches/assigned
-    const fetchAssignedBatches = async () => {
+    const fetchAssignedBatches = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const response = await apiClient.get<AssignedBatchResponse[]>('/v1/farmer/batches/assigned');
             setBatches(response.data);
-        } catch (err: any) {
-            console.error('Lỗi tải danh sách lô phân công:', err);
-            setError(err?.response?.data?.message || 'Không thể tải danh sách lô phân công từ Backend API.');
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            console.error('Lỗi tải danh sách lô phân công:', errorObj);
+            setError(errorObj.response?.data?.message || 'Không thể tải danh sách lô phân công từ Backend API.');
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchAssignedBatches();
     }, []);
 
-    // Gọi API Nông dân xác nhận nhận lô: PUT /api/v1/farmer/batches/{id}/accept
+    useEffect(() => {
+        const initFetch = async () => {
+            await fetchAssignedBatches();
+        };
+        void initFetch();
+    }, [fetchAssignedBatches]);
+
     const handleAcceptBatch = async (batchId: string) => {
         setAcceptingId(batchId);
         try {
             await apiClient.put(`/v1/farmer/batches/${batchId}/accept`);
             alert('Đã xác nhận nhận lô phân công thành công!');
             fetchAssignedBatches();
-        } catch (err: any) {
-            alert(err?.response?.data?.message || 'Xác nhận nhận lô thất bại!');
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            alert(errorObj.response?.data?.message || 'Xác nhận nhận lô thất bại!');
         } finally {
             setAcceptingId(null);
         }

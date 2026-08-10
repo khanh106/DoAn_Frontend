@@ -1,12 +1,12 @@
-// src/pages/retailer/RetailerPage.tsx
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { AxiosError } from 'axios';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
 import { apiClient } from '../../services/api';
 import { RefreshCw, Truck, ShoppingBag } from 'lucide-react';
 
-// DTO khớp 100% với ShipmentHistoryDto của Backend .NET API
 export interface ShipmentResponse {
     id: string;
     shipmentCode: string;
@@ -24,48 +24,51 @@ export const RetailerPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    // Gọi API Backend: GET /api/v1/retailer/shipments
-    const fetchShipments = async () => {
+    const fetchShipments = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const response = await apiClient.get<ShipmentResponse[]>('/v1/retailer/shipments');
             setShipments(response.data);
-        } catch (err: any) {
-            console.error('Lỗi tải danh sách vận đơn Retailer:', err);
-            setError(err?.response?.data?.message || 'Không thể tải danh sách lô hàng từ Backend API.');
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            console.error('Lỗi tải danh sách vận đơn Retailer:', errorObj);
+            setError(errorObj.response?.data?.message || 'Không thể tải danh sách lô hàng từ Backend API.');
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchShipments();
     }, []);
 
-    // Gọi API Tiếp nhận lô hàng: POST /api/v1/retailer/shipments/{id}/receive
+    useEffect(() => {
+        const initFetch = async () => {
+            await fetchShipments();
+        };
+        void initFetch();
+    }, [fetchShipments]);
+
     const handleReceiveShipment = async (id: string) => {
         setActionLoading(id);
         try {
             await apiClient.post(`/v1/retailer/shipments/${id}/receive`);
             alert('Tiếp nhận lô hàng thành công!');
             fetchShipments();
-        } catch (err: any) {
-            alert(err?.response?.data?.message || 'Tiếp nhận lô hàng thất bại!');
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            alert(errorObj.response?.data?.message || 'Tiếp nhận lô hàng thất bại!');
         } finally {
             setActionLoading(null);
         }
     };
 
-    // Gọi API Đưa sản phẩm lên kệ (READY FOR SALE): POST /api/v1/retailer/shipments/{id}/ready-for-sale
     const handleReadyForSale = async (id: string) => {
         setActionLoading(id);
         try {
             await apiClient.post(`/v1/retailer/shipments/${id}/ready-for-sale`);
             alert('Đã chuyển trạng thái READY FOR SALE thành công!');
             fetchShipments();
-        } catch (err: any) {
-            alert(err?.response?.data?.message || 'Chuyển trạng thái bán thất bại!');
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            alert(errorObj.response?.data?.message || 'Chuyển trạng thái bán thất bại!');
         } finally {
             setActionLoading(null);
         }

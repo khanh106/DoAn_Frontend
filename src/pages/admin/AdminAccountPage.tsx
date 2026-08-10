@@ -1,12 +1,11 @@
-// src/pages/admin/AdminAccountPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AxiosError } from 'axios';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
 import { apiClient } from '../../services/api';
 import { Plus, Download, RefreshCw, CheckCircle, Lock } from 'lucide-react';
 
-// Interface khớp 100% DTO PendingUserDto của Backend (.NET API)
 export interface UserAccountResponse {
     id: string;
     fullName: string;
@@ -24,46 +23,49 @@ export const AdminAccountPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    // 1. Gọi API Backend: GET /api/v1/users/pending
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const response = await apiClient.get<UserAccountResponse[]>('/v1/users/pending');
             setUsers(response.data);
-        } catch (err: any) {
-            console.error('Lỗi khi tải danh sách người dùng:', err);
-            setError(err?.response?.data?.message || 'Không thể tải danh sách tài khoản từ Backend API.');
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            console.error('Lỗi khi tải danh sách người dùng:', errorObj);
+            setError(errorObj.response?.data?.message || 'Không thể tải danh sách tài khoản từ Backend API.');
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchUsers();
     }, []);
 
-    // 2. Gọi API Duyệt / Từ chối tài khoản: PUT /api/v1/users/{id}/approve
+    useEffect(() => {
+        const initFetch = async () => {
+            await fetchUsers();
+        };
+        void initFetch();
+    }, [fetchUsers]);
+
     const handleApprove = async (id: string, action: 'APPROVE' | 'REJECT') => {
         setActionLoading(id);
         try {
             await apiClient.put(`/v1/users/${id}/approve`, { action });
-            fetchUsers(); // Refresh lại dữ liệu sau khi duyệt thành công
-        } catch (err: any) {
-            alert(err?.response?.data?.message || 'Thao tác duyệt thất bại!');
+            fetchUsers();
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            alert(errorObj.response?.data?.message || 'Thao tác duyệt thất bại!');
         } finally {
             setActionLoading(null);
         }
     };
 
-    // 3. Gọi API Khóa / Mở khóa tài khoản: PUT /api/v1/users/{id}/lock
     const handleLock = async (id: string, lock: boolean) => {
         setActionLoading(id);
         try {
             await apiClient.put(`/v1/users/${id}/lock`, { lock });
-            fetchUsers(); // Refresh lại dữ liệu sau khi khóa
-        } catch (err: any) {
-            alert(err?.response?.data?.message || 'Thao tác khóa thất bại!');
+            fetchUsers();
+        } catch (err) {
+            const errorObj = err as AxiosError<{ message?: string }>;
+            alert(errorObj.response?.data?.message || 'Thao tác khóa thất bại!');
         } finally {
             setActionLoading(null);
         }
