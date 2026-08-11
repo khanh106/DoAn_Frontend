@@ -34,7 +34,10 @@ import { AccountLockedPage } from './pages/auth/AccountLockedPage';
 
 import { CooperativeDashboardPage } from './pages/cooperative/CooperativeDashboardPage';
 import { FarmerPage } from './pages/farmer/FarmerPage';
-import { RetailerPage } from './pages/retailer/RetailerPage';
+import { RetailerDashboardPage } from './pages/retailer/RetailerDashboardPage';
+import { ReceiveShipmentPage } from './pages/retailer/ReceiveShipmentPage';
+import { RetailerQualityPage } from './pages/retailer/RetailerQualityPage';
+import { RetailerQRCodesPage } from './pages/retailer/RetailerQRCodesPage';
 import { TraceabilityPage } from './pages/public/TraceabilityPage';
 import { DesignSystemShowcase } from './pages/DesignSystemShowcase';
 
@@ -152,8 +155,11 @@ export const App: React.FC = () => {
         <Route element={<ProtectedRoute allowedRoles={['RETAILER']} />}>
           <Route element={<RetailerLayout />}>
             <Route path="/retailer" element={<Navigate to="/retailer/dashboard" replace />} />
-            <Route path="/retailer/dashboard" element={<RetailerPage />} />
-            <Route path="/retailer/*" element={<RetailerPage />} />
+            <Route path="/retailer/dashboard" element={<RetailerDashboardPage />} />
+            <Route path="/retailer/shipments" element={<ReceiveShipmentPage />} />
+            <Route path="/retailer/qr-codes" element={<RetailerQRCodesPage />} />
+            <Route path="/retailer/qa" element={<RetailerQualityPage />} />
+            <Route path="/retailer/*" element={<RetailerDashboardPage />} />
           </Route>
         </Route>
 

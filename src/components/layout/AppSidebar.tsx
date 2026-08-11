@@ -66,9 +66,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/retailer/dashboard' },
             { icon: Truck, label: 'Tiếp nhận lô hàng', path: '/retailer/shipments' },
             { icon: CheckCircle, label: 'Kiểm tra chất lượng', path: '/retailer/qa' },
-            { icon: ShoppingBag, label: 'Kệ hàng / Bán lẻ', path: '/retailer/shelves' },
             { icon: QrCode, label: 'Mã QR sản phẩm', path: '/retailer/qr-codes' },
-            { icon: Activity, label: 'Báo cáo bán hàng', path: '/retailer/reports' },
         ],
         GUEST: [],
     };
