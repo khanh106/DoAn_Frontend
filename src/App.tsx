@@ -3,11 +3,16 @@ import { BatchManagementPage } from './pages/processor/BatchManagementPage';
 import { ProcessManagementPage } from './pages/processor/ProcessManagementPage';
 import { PlanManagementPage } from './pages/processor/PlanManagementPage';
 import { QRCodeAndShippingPage } from './pages/processor/QRCodeAndShippingPage';
-
+import { FarmerDashboardPage } from './pages/farmer/FarmerDashboardPage';
+import { FarmerBatchesPage } from './pages/farmer/FarmerBatchesPage';
 import { FruitProductManagementPage } from './pages/processor/FruitProductManagementPage';
 import { FarmAreaManagementPage } from './pages/processor/FarmAreaManagementPage';
 import { WorkerManagementPage } from './pages/processor/WorkerManagementPage';
 import { ProductionLogManagementPage } from './pages/cooperative/ProductionLogManagementPage';
+import { FarmerLogsPage } from './pages/farmer/FarmerLogsPage';
+import { FarmerProgressPage } from './pages/farmer/FarmerProgressPage';
+import { FarmerHarvestPage } from './pages/farmer/FarmerHarvestPage';
+import { FarmerGuidesPage } from './pages/farmer/FarmerGuidesPage';
 
 import { BlockchainContractsPage } from './pages/admin/BlockchainContractsPage';
 import { SystemLogsPage } from './pages/admin/SystemLogsPage';
@@ -87,9 +92,13 @@ export const App: React.FC = () => {
         <Route element={<ProtectedRoute allowedRoles={['FARMER']} />}>
           <Route element={<FarmerLayout />}>
             <Route path="/farmer" element={<Navigate to="/farmer/dashboard" replace />} />
-            <Route path="/farmer/dashboard" element={<FarmerPage />} />
-            <Route path="/farmer/batches" element={<FarmerPage />} />
-            <Route path="/farmer/*" element={<FarmerPage />} />
+            <Route path="/farmer/dashboard" element={<FarmerDashboardPage />} />
+            <Route path="/farmer/batches" element={<FarmerBatchesPage />} />
+            <Route path="/farmer/logs" element={<FarmerLogsPage />} />
+            <Route path="/farmer/progress" element={<FarmerProgressPage />} />
+            <Route path="/farmer/harvest" element={<FarmerHarvestPage />} />
+            <Route path="/farmer/guides" element={<FarmerGuidesPage />} />
+            <Route path="/farmer/*" element={<FarmerDashboardPage />} />
           </Route>
         </Route>
 
@@ -150,8 +159,8 @@ export const App: React.FC = () => {
 
         {/* DEFAULT REDIRECT */}
         <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </BrowserRouter>
+      </Routes >
+    </BrowserRouter >
   );
 };
 
