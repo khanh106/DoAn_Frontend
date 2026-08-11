@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapPin, RefreshCw, AlertCircle, Plus, Edit3, Search, Layers, CheckCircle2, Globe, Building2 } from 'lucide-react';
+import { MapPin, RefreshCw, AlertCircle, Plus, Edit3, Search, Layers, CheckCircle2, Globe, Building2, Eye, Trash2, Calendar, User, FileText } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppModal } from '../../components/ui/AppModal';
 import { AppButton } from '../../components/ui/AppButton';
@@ -36,20 +36,23 @@ export const FarmAreaManagementPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-    // Filter states
+    // Bộ lọc
     const [searchPlantingCode, setSearchPlantingCode] = useState<string>('');
     const [searchProvince, setSearchProvince] = useState<string>('');
     const [searchDistrict, setSearchDistrict] = useState<string>('');
     const [searchWard, setSearchWard] = useState<string>('');
 
-    // Modal states
+    // Quản lý Modal
     const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
     const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
+    const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState<boolean>(false);
+
     const [selectedArea, setSelectedArea] = useState<FarmAreaDto | null>(null);
     const [formData, setFormData] = useState<FarmAreaFormData>(initialFormData);
     const [submitting, setSubmitting] = useState<boolean>(false);
 
-    // Fetch data from API
+    // Tải danh sách vùng trồng từ API
     const fetchFarmAreas = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -82,7 +85,7 @@ export const FarmAreaManagementPage: React.FC = () => {
         return farmAreas.filter((item) => !!item.plantingCode).length;
     }, [farmAreas]);
 
-    // Handle Form Submit (Create)
+    // Xử lý tạo mới
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.ownerName || !formData.province || !formData.district || !formData.ward) {
@@ -117,7 +120,13 @@ export const FarmAreaManagementPage: React.FC = () => {
         }
     };
 
-    // Handle Open Edit Modal
+    // Mở Modal Xem Chi Tiết
+    const handleOpenDetail = (item: FarmAreaDto) => {
+        setSelectedArea(item);
+        setIsDetailOpen(true);
+    };
+
+    // Mở Modal Chỉnh Sửa
     const handleOpenEdit = (item: FarmAreaDto) => {
         setSelectedArea(item);
         setFormData({
@@ -134,7 +143,13 @@ export const FarmAreaManagementPage: React.FC = () => {
         setIsEditOpen(true);
     };
 
-    // Handle Form Submit (Update)
+    // Mở Modal Xác Nhận Xóa
+    const handleOpenDelete = (item: FarmAreaDto) => {
+        setSelectedArea(item);
+        setIsDeleteOpen(true);
+    };
+
+    // Xử lý cập nhật
     const handleEditSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedArea) return;
@@ -167,7 +182,32 @@ export const FarmAreaManagementPage: React.FC = () => {
         }
     };
 
-    // Bảng Cột
+    // Xử lý Xóa vùng trồng
+    const handleConfirmDelete = async () => {
+        if (!selectedArea) return;
+
+        setSubmitting(true);
+        setError(null);
+        try {
+            if (processorService.deleteFarmArea) {
+                await processorService.deleteFarmArea(selectedArea.id);
+            } else {
+                setFarmAreas((prev) => prev.filter((a) => a.id !== selectedArea.id));
+            }
+
+            setSuccessMsg(`Đã xóa vùng trồng "${selectedArea.name}" thành công!`);
+            setIsDeleteOpen(false);
+            setSelectedArea(null);
+            await fetchFarmAreas();
+        } catch (err) {
+            console.error('Lỗi xóa vùng trồng:', err);
+            setError('Không thể xóa vùng trồng. Vui lòng thử lại.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // Định nghĩa các cột của Bảng
     const columns: Column<FarmAreaDto>[] = [
         { header: 'Tên Vùng Trồng', key: 'name' },
         {
@@ -215,21 +255,43 @@ export const FarmAreaManagementPage: React.FC = () => {
             key: 'id',
             align: 'center',
             render: (item) => (
-                <AppButton
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<Edit3 className="w-3.5 h-3.5 text-slate-600" />}
-                    onClick={() => handleOpenEdit(item)}
-                >
-                    Sửa
-                </AppButton>
+                <div className="flex items-center justify-center gap-1.5">
+                    <AppButton
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Eye className="w-3.5 h-3.5 text-blue-600" />}
+                        onClick={() => handleOpenDetail(item)}
+                        title="Xem chi tiết"
+                    >
+                        Chi tiết
+                    </AppButton>
+                    <AppButton
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Edit3 className="w-3.5 h-3.5 text-amber-600" />}
+                        onClick={() => handleOpenEdit(item)}
+                        title="Chỉnh sửa"
+                    >
+                        Sửa
+                    </AppButton>
+                    <AppButton
+                        variant="outline"
+                        size="sm"
+                        className="text-rose-600 border-rose-200 hover:bg-rose-50"
+                        leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-600" />}
+                        onClick={() => handleOpenDelete(item)}
+                        title="Xóa vùng trồng"
+                    >
+                        Xóa
+                    </AppButton>
+                </div>
             ),
         },
     ];
 
     return (
         <div className="space-y-6">
-            {/* Header & Button Thêm mới */}
+            {/* Header & Nút Thêm mới */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">Quản Lý Vùng Trồng HTX</h2>
@@ -261,7 +323,7 @@ export const FarmAreaManagementPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Thông Báo Toast/Alert */}
+            {/* Thông Báo Alert */}
             {error && (
                 <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-semibold flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -438,18 +500,12 @@ export const FarmAreaManagementPage: React.FC = () => {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                         <AppInput
                             label="Loại Đất"
                             placeholder="VD: Đất đỏ bazan"
                             value={formData.soilType}
                             onChange={(e) => setFormData({ ...formData, soilType: e.target.value })}
-                        />
-                        <AppInput
-                            label="Tọa Độ GPS"
-                            placeholder="VD: 10.762622, 106.660172"
-                            value={formData.gps}
-                            onChange={(e) => setFormData({ ...formData, gps: e.target.value })}
                         />
                     </div>
                 </form>
@@ -535,20 +591,151 @@ export const FarmAreaManagementPage: React.FC = () => {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                         <AppInput
                             label="Loại Đất"
+                            placeholder="VD: Đất đỏ bazan"
                             value={formData.soilType}
                             onChange={(e) => setFormData({ ...formData, soilType: e.target.value })}
-                        />
-                        <AppInput
-                            label="Tọa Độ GPS"
-                            value={formData.gps}
-                            onChange={(e) => setFormData({ ...formData, gps: e.target.value })}
                         />
                     </div>
                 </form>
             </AppModal>
+
+            {/* MODAL 3: XEM CHI TIẾT VÙNG TRỒNG */}
+            {selectedArea && (
+                <AppModal
+                    isOpen={isDetailOpen}
+                    onClose={() => {
+                        setIsDetailOpen(false);
+                        setSelectedArea(null);
+                    }}
+                    title="Chi Tiết Vùng Trồng HTX"
+                    maxWidth="lg"
+                    footer={
+                        <AppButton
+                            variant="outline"
+                            onClick={() => {
+                                setIsDetailOpen(false);
+                                setSelectedArea(null);
+                            }}
+                        >
+                            Đóng
+                        </AppButton>
+                    }
+                >
+                    <div className="space-y-4 text-sm text-slate-700">
+                        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <h3 className="font-bold text-lg text-emerald-900">{selectedArea.name}</h3>
+                                <p className="text-xs text-emerald-700 mt-0.5">ID: <code className="font-mono">{selectedArea.id}</code></p>
+                            </div>
+                            <span className="font-mono font-bold text-slate-800 bg-white text-emerald-800 px-3 py-1 rounded-xl border border-emerald-200 shadow-2xs">
+                                MSVT: {selectedArea.plantingCode || 'Chưa cấp'}
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
+                                <User className="w-5 h-5 text-slate-400 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-xs text-slate-400 uppercase font-semibold">Chủ Hộ / Quản Lý</p>
+                                    <p className="font-semibold text-slate-800 mt-0.5">{selectedArea.ownerName || 'Chưa cập nhật'}</p>
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
+                                <Globe className="w-5 h-5 text-slate-400 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-xs text-slate-400 uppercase font-semibold">Diện Tích Quản Lý</p>
+                                    <p className="font-bold text-emerald-700 mt-0.5">{selectedArea.area ? `${selectedArea.area} ha` : 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
+                                <MapPin className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-xs text-slate-400 uppercase font-semibold">Địa Giới Hành Chính</p>
+                                    <p className="font-semibold text-slate-800 mt-0.5">
+                                        {selectedArea.ward}, {selectedArea.district}, {selectedArea.province}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
+                                <FileText className="w-5 h-5 text-slate-400 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-xs text-slate-400 uppercase font-semibold">Loại Đất Canh Tác</p>
+                                    <p className="font-semibold text-slate-800 mt-0.5">{selectedArea.soilType || 'Chưa thông tin'}</p>
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
+                                <MapPin className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-xs text-slate-400 uppercase font-semibold">Tọa Độ GPS</p>
+                                    <p className="font-mono text-xs text-slate-800 mt-0.5">{selectedArea.gps || 'Chưa định vị'}</p>
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
+                                <Calendar className="w-5 h-5 text-slate-400 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-xs text-slate-400 uppercase font-semibold">Ngày Tạo Hệ Thống</p>
+                                    <p className="font-semibold text-slate-800 mt-0.5">
+                                        {selectedArea.createdAt ? new Date(selectedArea.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </AppModal>
+            )}
+
+            {/* MODAL 4: XÁC NHẬN XÓA VÙNG TRỒNG */}
+            {selectedArea && (
+                <AppModal
+                    isOpen={isDeleteOpen}
+                    onClose={() => {
+                        setIsDeleteOpen(false);
+                        setSelectedArea(null);
+                    }}
+                    title="Xác Nhận Xóa Vùng Trồng"
+                    maxWidth="sm"
+                    footer={
+                        <>
+                            <AppButton
+                                variant="outline"
+                                onClick={() => {
+                                    setIsDeleteOpen(false);
+                                    setSelectedArea(null);
+                                }}
+                                disabled={submitting}
+                            >
+                                Hủy
+                            </AppButton>
+                            <AppButton
+                                variant="red"
+                                onClick={handleConfirmDelete}
+                                isLoading={submitting}
+                            >
+                                Xác Nhận Xóa
+                            </AppButton>
+
+                        </>
+                    }
+                >
+                    <div className="space-y-3 py-2">
+                        <div className="flex items-center gap-3 text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100">
+                            <AlertCircle className="w-6 h-6 shrink-0" />
+                            <p className="text-xs font-semibold">Hành động này sẽ xóa vùng trồng khỏi hệ thống và không thể hoàn tác.</p>
+                        </div>
+                        <p className="text-sm text-slate-700">
+                            Bạn có chắc chắn muốn xóa vùng trồng <strong className="text-slate-900">{selectedArea.name}</strong> (Mã MSVT: {selectedArea.plantingCode || 'Chưa cấp'}) không?
+                        </p>
+                    </div>
+                </AppModal>
+            )}
         </div>
     );
 };

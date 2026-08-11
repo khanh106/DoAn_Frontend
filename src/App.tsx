@@ -8,11 +8,13 @@ import { FarmerBatchesPage } from './pages/farmer/FarmerBatchesPage';
 import { FruitProductManagementPage } from './pages/processor/FruitProductManagementPage';
 import { FarmAreaManagementPage } from './pages/processor/FarmAreaManagementPage';
 import { WorkerManagementPage } from './pages/processor/WorkerManagementPage';
+import { CooperativeSettingsPage } from './pages/processor/CooperativeSettingsPage';
 import { ProductionLogManagementPage } from './pages/cooperative/ProductionLogManagementPage';
 import { FarmerLogsPage } from './pages/farmer/FarmerLogsPage';
 import { FarmerProgressPage } from './pages/farmer/FarmerProgressPage';
 import { FarmerHarvestPage } from './pages/farmer/FarmerHarvestPage';
 import { FarmerGuidesPage } from './pages/farmer/FarmerGuidesPage';
+import { ProfilePage } from './pages/common/ProfilePage';
 
 import { BlockchainContractsPage } from './pages/admin/BlockchainContractsPage';
 import { SystemLogsPage } from './pages/admin/SystemLogsPage';
@@ -88,6 +90,8 @@ export const App: React.FC = () => {
             <Route path="/admin/blockchain-transactions" element={<TransactionMonitoringPage />} />
             <Route path="/admin/transactions" element={<TransactionMonitoringPage />} />
             <Route path="/admin/*" element={<AccountManagementPage />} />
+            <Route path="/admin/profile" element={<ProfilePage />} />
+
           </Route>
         </Route>
 
@@ -102,6 +106,8 @@ export const App: React.FC = () => {
             <Route path="/farmer/harvest" element={<FarmerHarvestPage />} />
             <Route path="/farmer/guides" element={<FarmerGuidesPage />} />
             <Route path="/farmer/*" element={<FarmerDashboardPage />} />
+            <Route path="/farmer/profile" element={<ProfilePage />} />
+
           </Route>
         </Route>
 
@@ -134,6 +140,9 @@ export const App: React.FC = () => {
             <Route path="/processor/logs" element={<ProductionLogManagementPage />} />
             <Route path="/cooperative/batches" element={<BatchManagementPage />} />
             <Route path="/processor/batches" element={<BatchManagementPage />} />
+            <Route path="/cooperative/profile" element={<ProfilePage />} />
+            <Route path="/processor/profile" element={<ProfilePage />} />
+
 
             <Route path="/processor/fruit-products" element={<FruitProductManagementPage />} />
             {/* RUT VẬN CHUYỂN & MÃ QR */}
@@ -144,6 +153,8 @@ export const App: React.FC = () => {
 
             <Route path="/processor/workers" element={<WorkerManagementPage />} />
             <Route path="/processor/shipping-and-qr" element={<QRCodeAndShippingPage />} />
+            <Route path="/cooperative/settings" element={<CooperativeSettingsPage />} />
+            <Route path="/processor/settings" element={<CooperativeSettingsPage />} />
             <Route path="/cooperative/*" element={<CooperativeDashboardPage />} />
             <Route path="/processor/*" element={<CooperativeDashboardPage />} />
             <Route path="/cooperative/workers" element={<WorkerManagementPage />} />
@@ -160,6 +171,8 @@ export const App: React.FC = () => {
             <Route path="/retailer/qr-codes" element={<RetailerQRCodesPage />} />
             <Route path="/retailer/qa" element={<RetailerQualityPage />} />
             <Route path="/retailer/*" element={<RetailerDashboardPage />} />
+            <Route path="/retailer/profile" element={<ProfilePage />} />
+
           </Route>
         </Route>
 

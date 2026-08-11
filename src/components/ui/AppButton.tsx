@@ -3,7 +3,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 
 export interface AppButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: 'green' | 'orange' | 'grey' | 'outline';
+    variant?: 'green' | 'orange' | 'grey' | 'outline' | 'red';
     size?: 'sm' | 'md' | 'lg';
     leftIcon?: React.ReactNode;
     rightIcon?: React.ReactNode;
@@ -28,6 +28,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
         orange: 'bg-[#f97316] hover:bg-[#ea580c] text-white shadow-xs',
         grey: 'bg-[#64748b] hover:bg-[#475569] text-white shadow-xs',
         outline: 'border border-slate-300 hover:bg-slate-100 text-slate-700 bg-white',
+        red: 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs',
     };
 
     const sizeStyles = {

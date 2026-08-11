@@ -43,6 +43,9 @@ export interface User {
     walletAddress?: string;
     status: UserStatus;
     createdAt?: string;
+    avatar?: string;
+    bio?: string;
+    organization?: string;
 }
 
 export interface FruitType {

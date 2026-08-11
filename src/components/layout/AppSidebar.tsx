@@ -15,6 +15,7 @@ import {
     QrCode,
     Truck,
     ShoppingBag,
+    Settings,
 } from 'lucide-react';
 import type { UserRole } from '../../types';
 
@@ -32,6 +33,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
     // Bộ menu chuẩn dùng chung cho cả Hợp tác xã (COOPERATIVE) và Cơ sở chế biến (PROCESSOR)
     const cooperativeMenuItems: SidebarMenuItem[] = [
         { icon: LayoutDashboard, label: 'Tổng quan', path: '/cooperative/dashboard' },
+        { icon: Settings, label: 'Thiết lập', path: '/cooperative/settings' },
         { icon: MapPin, label: 'Quản lý Vùng trồng', path: '/cooperative/farms' },
         { icon: Layers, label: 'Quản lý Lô sản xuất', path: '/cooperative/batches' },
         { icon: Users, label: 'Quản lý Nhân công', path: '/cooperative/workers' },

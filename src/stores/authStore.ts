@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import type { User, UserRole, UserStatus } from '../types';
 import { authService } from '../services/authService';
@@ -17,6 +16,7 @@ interface AuthState {
     logout: () => void;
     setAuth: (user: User, token: string, refreshToken: string) => void;
     checkAuth: () => void;
+    updateUser: (partialUser: Partial<User>) => void; // <--- 1. KHAI BÁO TẠI INTERFACE
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -31,6 +31,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('refreshToken', refreshToken);
         set({ user, token, refreshToken, isAuthenticated: true });
+    },
+
+    // 2. PHẦN THÂN HÀM XỬ LÝ (Nếu thiếu đoạn này code sẽ bị đỏ)
+    updateUser: (partialUser: Partial<User>) => {
+        const currentUser = get().user;
+        if (currentUser) {
+            const updatedUser = { ...currentUser, ...partialUser };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            set({ user: updatedUser });
+        }
     },
 
     login: async (credentials: LoginRequest) => {

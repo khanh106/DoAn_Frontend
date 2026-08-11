@@ -31,6 +31,19 @@ export interface FarmAreaDto {
     soilType?: string;
     gps?: string;
     plantingCode?: string;
+    createdAt?: string; // 👈 Thêm dòng này
+    updatedAt?: string;
+}
+
+export interface DistributorDto {
+    id: string;
+    code: string;
+    name: string;
+    phone: string;
+    email?: string;
+    address: string;
+    taxCode?: string;
+    status: string;
 }
 
 export interface MaterialItemDto {
@@ -203,6 +216,10 @@ export const processorService = {
         const response = await apiClient.post<InventoryLogDto>('/v1/processor/inventory/transactions', data);
         return response.data;
     },
+    deleteFarmArea: async (id: string): Promise<void> => {
+        await apiClient.delete(`/v1/processor/farm-areas/${id}`);
+    },
+
 
     // Vật tư (Materials)
     getMaterials: async (): Promise<MaterialItemDto[]> => {
@@ -306,5 +323,20 @@ export const processorService = {
             params: { role: 'FARMER' }
         });
         return response.data;
+    },
+
+    // Nhà phân phối / Đối tác (Distributors)
+    getDistributors: async (): Promise<DistributorDto[]> => {
+        const response = await apiClient.get<DistributorDto[]>('/v1/processor/distributors');
+        return response.data;
+    },
+
+    createDistributor: async (data: Partial<DistributorDto>): Promise<DistributorDto> => {
+        const response = await apiClient.post<DistributorDto>('/v1/processor/distributors', data);
+        return response.data;
+    },
+
+    deleteDistributor: async (id: string): Promise<void> => {
+        await apiClient.delete(`/v1/processor/distributors/${id}`);
     }
 };

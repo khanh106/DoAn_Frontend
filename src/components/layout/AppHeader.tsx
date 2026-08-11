@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Shield, Leaf, UserCheck, AlertTriangle, RefreshCw, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Shield, Leaf, UserCheck, AlertTriangle, RefreshCw, ExternalLink, CheckCircle2, User, Building2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { adminService } from '../../services/adminService';
+import { CooperativeInfoModal } from '../cooperative/CooperativeInfoModal';
+
 
 interface AppHeaderProps {
     portalTitle?: string;
@@ -15,6 +17,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     const { user, logout } = useAuthStore();
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotiDropdown, setShowNotiDropdown] = useState(false);
+    const [isCoopModalOpen, setIsCoopModalOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notiRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +77,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         logout();
         navigate('/login');
     };
+    const handleProfileClick = () => {
+        setShowDropdown(false);
+        if (user?.role === 'ADMIN') navigate('/admin/profile');
+        else if (user?.role === 'FARMER') navigate('/farmer/profile');
+        else if (user?.role === 'RETAILER') navigate('/retailer/profile');
+        else navigate('/processor/profile');
+    };
 
     const getRoleLabel = (role?: string) => {
         switch (role) {
@@ -116,16 +126,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 </h1>
             </div>
 
+
             <div className="flex items-center gap-4">
+                {/* NÚT THÔNG TIN HTX / DOANH NGHIỆP (Chỉ hiển thị cho tài khoản COOPERATIVE và PROCESSOR) */}
+                {(user?.role === 'COOPERATIVE' || user?.role === 'PROCESSOR') && (
+                    <button
+                        onClick={() => setIsCoopModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                        title="Xem thông tin Hợp tác xã / Doanh nghiệp"
+                    >
+                        <Building2 className="w-4 h-4 text-slate-700" />
+                        <span className="hidden sm:inline">Thông tin HTX/Doanh nghiệp</span>
+                    </button>
+                )}
                 {/* 1. THÔNG TIN TÀI KHOẢN & ĐĂNG XUẤT (Vị trí đầu) */}
                 <div className="relative" ref={dropdownRef}>
                     <button
                         onClick={() => setShowDropdown(!showDropdown)}
                         className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
                     >
-                        <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                            {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                        <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-sm overflow-hidden border border-emerald-500/20">
+                            {user?.avatar ? (
+                                <img src={user.avatar} alt={user.fullName || 'Avatar'} className="w-full h-full object-cover" />
+                            ) : (
+                                user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'
+                            )}
                         </div>
+
                         <div className="text-left hidden sm:block">
                             <div className="flex items-center gap-1">
                                 <span className="text-xs font-bold text-slate-900">{user?.fullName || 'Tài khoản'}</span>
@@ -146,11 +173,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                             </div>
 
                             <div className="py-1">
-                                <div className="px-4 py-2 text-slate-600 flex items-center gap-2 hover:bg-slate-50">
-                                    <Shield className="w-4 h-4 text-slate-400" />
-                                    <span>Trạng thái: <strong className="text-emerald-600">{user?.status || 'APPROVED'}</strong></span>
-                                </div>
+                                <button
+                                    onClick={handleProfileClick}
+                                    className="w-full px-4 py-2 text-left text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+                                >
+                                    <User className="w-4 h-4 text-emerald-600" />
+                                    <span>Tài khoản</span>
+                                </button>
                             </div>
+
 
                             <div className="border-t border-slate-100 pt-1">
                                 <button
@@ -329,6 +360,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     </button>
                 )}
             </div>
+
+            {/* MODAL THÔNG TIN HỢP TÁC XÃ / DOANH NGHIỆP */}
+            <CooperativeInfoModal
+                isOpen={isCoopModalOpen}
+                onClose={() => setIsCoopModalOpen(false)}
+            />
         </header>
     );
 };
