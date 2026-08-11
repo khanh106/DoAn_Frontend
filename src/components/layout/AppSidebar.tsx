@@ -5,6 +5,7 @@ import {
     Users,
     Sliders,
     Package,
+    Layers,
     Activity,
     FileText,
     MapPin,
@@ -28,6 +29,19 @@ interface AppSidebarProps {
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
+    // Bộ menu chuẩn dùng chung cho cả Hợp tác xã (COOPERATIVE) và Cơ sở chế biến (PROCESSOR)
+    const cooperativeMenuItems: SidebarMenuItem[] = [
+        { icon: LayoutDashboard, label: 'Tổng quan', path: '/cooperative/dashboard' },
+        { icon: MapPin, label: 'Quản lý Vùng trồng', path: '/cooperative/farms' },
+        { icon: Layers, label: 'Quản lý Lô sản xuất', path: '/cooperative/batches' },
+        { icon: Users, label: 'Quản lý Nhân công', path: '/cooperative/workers' },
+        { icon: Package, label: 'Quản lý Kho', path: '/cooperative/inventory' },
+        { icon: Activity, label: 'Quy trình sản xuất', path: '/cooperative/process' },
+        { icon: Calendar, label: 'Lập kế hoạch', path: '/cooperative/plan' },
+        { icon: FileText, label: 'Nhật ký sản xuất', path: '/cooperative/logs' },
+        { icon: QrCode, label: 'Mã QR & Vận chuyển', path: '/cooperative/shipment' },
+    ];
+
     const menuConfig: Record<UserRole, SidebarMenuItem[]> = {
         ADMIN: [
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/admin/dashboard' },
@@ -37,15 +51,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
             { icon: Activity, label: 'Giám sát Giao dịch', path: '/admin/blockchain-transactions' },
             { icon: FileText, label: 'Nhật ký Hệ thống', path: '/admin/system-logs' },
         ],
-        COOPERATIVE: [
-            { icon: LayoutDashboard, label: 'Tổng quan', path: '/cooperative/dashboard' },
-            { icon: MapPin, label: 'Quản lý Vùng trồng', path: '/cooperative/farms' },
-            { icon: Package, label: 'Quản lý Kho', path: '/cooperative/inventory' },
-            { icon: Activity, label: 'Quy trình sản xuất', path: '/cooperative/process' },
-            { icon: Calendar, label: 'Lập kế hoạch', path: '/cooperative/plan' },
-            { icon: FileText, label: 'Nhật ký sản xuất', path: '/cooperative/logs' },
-            { icon: QrCode, label: 'Mã QR & Vận chuyển', path: '/cooperative/shipment' },
-        ],
+        // Cả COOPERATIVE và PROCESSOR đều dùng chung danh sách Menu HTX / Chế biến
+        COOPERATIVE: cooperativeMenuItems,
+        PROCESSOR: cooperativeMenuItems,
         FARMER: [
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/farmer/dashboard' },
             { icon: Calendar, label: 'Lô phân công', path: '/farmer/batches' },
@@ -53,13 +61,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
             { icon: Activity, label: 'Tiến độ công việc', path: '/farmer/progress' },
             { icon: CheckCircle, label: 'Xác nhận thu hoạch', path: '/farmer/harvest' },
             { icon: BookOpen, label: 'Hướng dẫn quy trình', path: '/farmer/guides' },
-        ],
-        PROCESSOR: [
-            { icon: LayoutDashboard, label: 'Tổng quan', path: '/processor/dashboard' },
-            { icon: Package, label: 'Nhập kho nguyên liệu', path: '/processor/inbound' },
-            { icon: Activity, label: 'Dây chuyền chế biến', path: '/processor/processing' },
-            { icon: CheckCircle, label: 'Kiểm định chất lượng', path: '/processor/inspection' },
-            { icon: QrCode, label: 'Đóng gói & Tem QR', path: '/processor/packaging' },
         ],
         RETAILER: [
             { icon: LayoutDashboard, label: 'Tổng quan', path: '/retailer/dashboard' },

@@ -73,7 +73,7 @@ export const LoginPage: React.FC = () => {
                             <Leaf className="h-8 w-8 text-emerald-400" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-white tracking-wide">OM FARM</h1>
+                            <h1 className="text-2xl font-bold text-white tracking-wide">FRUITCHAIN</h1>
                             <p className="text-xs text-emerald-200">Hệ thống Truy xuất Nguồn gốc Nông sản Blockchain</p>
                         </div>
                     </div>
@@ -102,7 +102,7 @@ export const LoginPage: React.FC = () => {
                 </div>
 
                 <div className="relative z-10 text-xs text-emerald-300/80 border-t border-emerald-600/40 pt-6">
-                    © 2026 OM FARM System. Bảo lưu mọi quyền.
+                    © 2026 FruitChain System. Bảo lưu mọi quyền.
                 </div>
             </div>
 

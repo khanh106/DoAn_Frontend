@@ -62,7 +62,7 @@ export const RegisterPage: React.FC = () => {
                         <Leaf className="w-7 h-7 text-emerald-600" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-900">OM FARM</h1>
+                        <h1 className="text-xl font-bold text-gray-900">FruitChain</h1>
                         <p className="text-xs text-gray-500">Đăng ký tham gia hệ thống Truy xuất Nguồn gốc</p>
                     </div>
                 </div>

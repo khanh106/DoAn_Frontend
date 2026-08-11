@@ -63,7 +63,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     register: async (data: RegisterRequest) => {
         set({ isLoading: true });
         try {
-            await authService.register(data);
+            const authResp = await authService.register(data);
+            if (authResp?.user) {
+                const user: User = {
+                    id: authResp.user.id,
+                    name: authResp.user.fullName,
+                    fullName: authResp.user.fullName,
+                    email: authResp.user.email,
+                    phone: authResp.user.phone,
+                    role: authResp.user.role as UserRole,
+                    status: authResp.user.status as UserStatus,
+                    walletAddress: authResp.user.walletAddress || undefined,
+                };
+                set({ user });
+            }
         } finally {
             set({ isLoading: false });
         }

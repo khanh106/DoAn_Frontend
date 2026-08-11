@@ -7,11 +7,8 @@ import { apiClient } from '../../../services/api';
 import {
     RefreshCw,
     Search,
-    Shield,
     ShieldAlert,
     UserCog,
-    Users,
-    CheckCircle,
 } from 'lucide-react';
 import { ChangeRoleModal, type UserAccountResponse } from './ChangeRoleModal';
 

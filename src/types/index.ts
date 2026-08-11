@@ -134,15 +134,3 @@ export interface Shipment {
     status: 'IN_TRANSIT' | 'DELIVERED' | 'ACCEPTED';
     txHash?: string;
 }
-@import "tailwindcss";
-
-/* THÊM ĐOẠN NÀY ĐỂ PHÓNG TO PHÔNG CHỮ HỆ THỐNG */
-html {
-    font - size: 17px; /* Mặc định là 16px. Đổi thành 17px hoặc 18px để chữ to hơn */
-}
-
-@layer utilities {
-  .bg - table - header {
-        background - color: #F1F0FE;
-    }
-}

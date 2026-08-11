@@ -21,7 +21,7 @@ export const AccountPendingPage: React.FC = () => {
 
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Tài khoản đang chờ phê duyệt</h2>
                 <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                    Cảm ơn <span className="font-semibold text-gray-900">{user?.fullName || 'bạn'}</span> đã đăng ký tài khoản tại hệ thống OM FARM. Yêu cầu của bạn đang được Quản trị viên (Admin) xem xét.
+                    Cảm ơn <span className="font-semibold text-gray-900">{user?.fullName || 'bạn'}</span> đã đăng ký tài khoản tại hệ thống FruitChain. Yêu cầu của bạn đang được Quản trị viên (Admin) xem xét.
                 </p>
 
                 <div className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-4 text-left text-xs text-amber-900 space-y-2 mb-6">

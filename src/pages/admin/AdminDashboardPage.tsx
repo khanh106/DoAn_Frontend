@@ -17,7 +17,6 @@ import {
     AlertTriangle,
     Layers,
     Sliders,
-    FileText
 } from 'lucide-react';
 import { AppButton } from '../../components/ui/AppButton';
 import { AppBadge } from '../../components/ui/AppBadge';

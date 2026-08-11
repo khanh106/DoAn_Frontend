@@ -26,6 +26,16 @@ export const FarmerPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
+    const handleRespondInvitation = async (invitationId: string, action: 'ACCEPT' | 'REJECT') => {
+        try {
+            await apiClient.put(`/v1/farmer/invitations/${invitationId}/respond`, { action });
+            alert(action === 'ACCEPT' ? 'Đã chấp nhận liên kết với Hợp tác xã!' : 'Đã từ chối lời mời!');
+            // Refresh lại danh sách nếu cần
+        } catch (err) {
+            alert('Phản hồi lời mời thất bại.');
+        }
+    };
+
     const fetchAssignedBatches = useCallback(async () => {
         setLoading(true);
         setError(null);

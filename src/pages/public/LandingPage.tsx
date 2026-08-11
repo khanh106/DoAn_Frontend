@@ -7,11 +7,7 @@ import {
     Tractor,
     Building2,
     ShoppingCart,
-    QrCode,
-    ArrowRight,
-    CheckCircle2,
-    Lock,
-    Globe
+    QrCode
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {

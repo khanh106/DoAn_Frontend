@@ -1,3 +1,14 @@
+import { InventoryPage } from './pages/processor/InventoryPage';
+import { BatchManagementPage } from './pages/processor/BatchManagementPage';
+import { ProcessManagementPage } from './pages/processor/ProcessManagementPage';
+import { PlanManagementPage } from './pages/processor/PlanManagementPage';
+import { QRCodeAndShippingPage } from './pages/processor/QRCodeAndShippingPage';
+
+import { FruitProductManagementPage } from './pages/processor/FruitProductManagementPage';
+import { FarmAreaManagementPage } from './pages/processor/FarmAreaManagementPage';
+import { WorkerManagementPage } from './pages/processor/WorkerManagementPage';
+import { ProductionLogManagementPage } from './pages/cooperative/ProductionLogManagementPage';
+
 import { BlockchainContractsPage } from './pages/admin/BlockchainContractsPage';
 import { SystemLogsPage } from './pages/admin/SystemLogsPage';
 
@@ -16,7 +27,6 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { AccountPendingPage } from './pages/auth/AccountPendingPage';
 import { AccountLockedPage } from './pages/auth/AccountLockedPage';
 
-import { AdminAccountPage } from './pages/admin/AdminAccountPage';
 import { CooperativeDashboardPage } from './pages/cooperative/CooperativeDashboardPage';
 import { FarmerPage } from './pages/farmer/FarmerPage';
 import { RetailerPage } from './pages/retailer/RetailerPage';
@@ -87,10 +97,45 @@ export const App: React.FC = () => {
         <Route element={<ProtectedRoute allowedRoles={['PROCESSOR', 'COOPERATIVE']} />}>
           <Route element={<ProcessorLayout />}>
             <Route path="/cooperative" element={<Navigate to="/cooperative/dashboard" replace />} />
+            <Route path="/processor" element={<Navigate to="/processor/dashboard" replace />} />
             <Route path="/cooperative/dashboard" element={<CooperativeDashboardPage />} />
             <Route path="/processor/dashboard" element={<CooperativeDashboardPage />} />
+
+            {/* ROUTES */}
+            <Route path="/cooperative/process" element={<ProcessManagementPage />} />
+            <Route path="/processor/process" element={<ProcessManagementPage />} />
+
+            <Route path="/processor/inventory" element={<InventoryPage />} />
+            <Route path="/cooperative/inventory" element={<InventoryPage />} />
+
+            <Route path="/cooperative/farms" element={<FarmAreaManagementPage />} />
+            <Route path="/cooperative/farm-areas" element={<FarmAreaManagementPage />} />
+            <Route path="/processor/farm-areas" element={<FarmAreaManagementPage />} />
+
+            <Route path="/cooperative/batches" element={<BatchManagementPage />} />
+            <Route path="/processor/batches" element={<BatchManagementPage />} />
+
+            <Route path="/cooperative/plan" element={<PlanManagementPage />} />
+            <Route path="/processor/plan" element={<PlanManagementPage />} />
+
+            <Route path="/cooperative/logs" element={<ProductionLogManagementPage />} />
+            <Route path="/processor/logs" element={<ProductionLogManagementPage />} />
+            <Route path="/cooperative/batches" element={<BatchManagementPage />} />
+            <Route path="/processor/batches" element={<BatchManagementPage />} />
+
+            <Route path="/processor/fruit-products" element={<FruitProductManagementPage />} />
+            {/* RUT VẬN CHUYỂN & MÃ QR */}
+            <Route path="/cooperative/shipment" element={<QRCodeAndShippingPage />} />
+            <Route path="/cooperative/shipping-and-qr" element={<QRCodeAndShippingPage />} />
+            <Route path="/processor/shipment" element={<QRCodeAndShippingPage />} />
+            <Route path="/processor/shipping-and-qr" element={<QRCodeAndShippingPage />} />
+
+            <Route path="/processor/workers" element={<WorkerManagementPage />} />
+            <Route path="/processor/shipping-and-qr" element={<QRCodeAndShippingPage />} />
             <Route path="/cooperative/*" element={<CooperativeDashboardPage />} />
             <Route path="/processor/*" element={<CooperativeDashboardPage />} />
+            <Route path="/cooperative/workers" element={<WorkerManagementPage />} />
+            <Route path="/processor/workers" element={<WorkerManagementPage />} />
           </Route>
         </Route>
 

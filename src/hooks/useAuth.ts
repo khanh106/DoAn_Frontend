@@ -1,4 +1,4 @@
-// src/hooks/useAuth.ts
+
 import { useAuthStore } from '../stores/authStore';
 import type { UserRole } from '../types';
 
