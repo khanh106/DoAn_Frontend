@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { Leaf, UserCheck, Mail, Phone, Lock, Eye, EyeOff, Building, Tractor, ShoppingCart } from 'lucide-react';
+import { Leaf, UserCheck, Mail, Phone, Lock, Eye, EyeOff, Building, Tractor, ShoppingCart, Wallet, CheckCircle } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
     const navigate = useNavigate();
@@ -17,6 +17,26 @@ export const RegisterPage: React.FC = () => {
 
     const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [walletAddress, setWalletAddress] = useState('');
+
+    // Hàm kết nối ví MetaMask
+    const handleConnectWallet = async () => {
+        if (typeof window === 'undefined' || !(window as any).ethereum) {
+            setErrorMessage('Trình duyệt của bạn chưa cài đặt tiện ích MetaMask! Vui lòng cài đặt MetaMask để tiếp tục.');
+            return;
+        }
+        try {
+            const accounts = await (window as any).ethereum.request({
+                method: 'eth_requestAccounts',
+            });
+            if (accounts && accounts.length > 0) {
+                setWalletAddress(accounts[0]);
+                setErrorMessage(null);
+            }
+        } catch (err: any) {
+            setErrorMessage(err.message || 'Lỗi kết nối ví MetaMask.');
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -37,6 +57,12 @@ export const RegisterPage: React.FC = () => {
             return;
         }
 
+        // Bắt buộc HTX phải kết nối ví MetaMask
+        if (roleRequested === 'PROCESSOR' && !walletAddress) {
+            setErrorMessage('Vui lòng kết nối ví MetaMask để hoàn tất đăng ký tài khoản Hợp tác xã.');
+            return;
+        }
+
         try {
             await register({
                 fullName,
@@ -44,6 +70,7 @@ export const RegisterPage: React.FC = () => {
                 phone,
                 password,
                 roleRequested,
+                walletAddress: roleRequested === 'PROCESSOR' ? walletAddress : undefined,
             });
 
             // Chuyển sang màn hình thông báo chờ duyệt
@@ -53,6 +80,7 @@ export const RegisterPage: React.FC = () => {
             setErrorMessage(msg);
         }
     };
+
 
     return (
         <div className="min-h-screen bg-[#F4F5FA] py-12 px-4 flex justify-center items-center">
@@ -77,6 +105,62 @@ export const RegisterPage: React.FC = () => {
                         {errorMessage}
                     </div>
                 )}
+                {/* Khối kết nối ví MetaMask riêng cho Hợp tác xã */}
+                {roleRequested === 'PROCESSOR' && (
+                    <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-3 mb-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <Wallet className="w-5 h-5 text-emerald-600" />
+                                <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                    Ví MetaMask Hợp tác xã <span className="text-red-500">*</span>
+                                </span>
+                            </div>
+                            {walletAddress && (
+                                <span className="flex items-center text-xs text-emerald-600 font-semibold bg-white px-2.5 py-1 rounded-lg border border-emerald-200">
+                                    <CheckCircle className="w-3.5 h-3.5 mr-1 text-emerald-500" /> Đã kết nối
+                                </span>
+                            )}
+                        </div>
+
+                        {walletAddress ? (
+                            <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-emerald-100">
+                                <div className="text-xs font-mono text-gray-700 truncate mr-2">
+                                    {walletAddress}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleConnectWallet}
+                                    className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold whitespace-nowrap"
+                                >
+                                    Đổi ví
+                                </button>
+                            </div>
+                        ) : (
+                            <div>
+                                <p className="text-xs text-gray-600 mb-2">
+                                    Khi được Admin duyệt, địa chỉ ví này sẽ được cấp quyền <b>PROCESSOR_ROLE</b> trực tiếp trên Blockchain.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={handleConnectWallet}
+                                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center space-x-2 transition-all shadow-sm"
+                                >
+                                    <Wallet className="w-4 h-4" />
+                                    <span>Kết nối ví MetaMask</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Thông báo ví tự sinh cho Nông dân / Siêu thị */}
+                {(roleRequested === 'FARMER' || roleRequested === 'RETAILER') && (
+                    <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center space-x-3 text-emerald-900 text-xs mb-6">
+                        <Wallet className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Hệ thống sẽ <b>tự động khởi tạo ví Blockchain</b> cho tài khoản {roleRequested === 'FARMER' ? 'Nông dân' : 'Siêu thị'} mà không cần kết nối ví ngoài.</span>
+                    </div>
+                )}
+
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {/* Lựa chọn Role */}
@@ -98,8 +182,8 @@ export const RegisterPage: React.FC = () => {
                                         type="button"
                                         onClick={() => setRoleRequested(item.id as any)}
                                         className={`p-3 rounded-xl border text-left transition-all ${isSelected
-                                                ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 ring-2 ring-emerald-500/20'
-                                                : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                                            ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 ring-2 ring-emerald-500/20'
+                                            : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
                                             }`}
                                     >
                                         <Icon className={`w-5 h-5 mb-2 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
@@ -206,6 +290,7 @@ export const RegisterPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
 
                     <button
                         type="submit"

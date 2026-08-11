@@ -30,6 +30,8 @@ import {
     type FarmAreaDto,
     type UserWorkerDto
 } from '../../services/processorService';
+import { web3Service } from '../../services/web3Service';
+import { CONTRACT_CONFIG } from '../../config/constants';
 
 export const BatchManagementPage: React.FC = () => {
     // State dữ liệu danh sách Lô
@@ -38,7 +40,7 @@ export const BatchManagementPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [filterStage, setFilterStage] = useState<string>('ALL');
-
+    const [hideFailedBatches, setHideFailedBatches] = useState<boolean>(true);
     // State danh mục hỗ trợ tạo Lô
     const [fruitTypes, setFruitTypes] = useState<FruitTypeDto[]>([]);
     const [products, setProducts] = useState<ProductDto[]>([]);
@@ -79,13 +81,15 @@ export const BatchManagementPage: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const [ftRes, pRes, faRes, wRes] = await Promise.allSettled([
+            const [bRes, ftRes, pRes, faRes, wRes] = await Promise.allSettled([
+                processorService.getBatches(),
                 processorService.getFruitTypes(),
                 processorService.getProducts(),
                 processorService.getFarmAreas(),
                 processorService.getWorkers(),
             ]);
 
+            if (bRes.status === 'fulfilled') setBatches(bRes.value);
             if (ftRes.status === 'fulfilled') setFruitTypes(ftRes.value);
             if (pRes.status === 'fulfilled') setProducts(pRes.value);
             if (faRes.status === 'fulfilled') setFarmAreas(faRes.value);
@@ -178,7 +182,7 @@ export const BatchManagementPage: React.FC = () => {
 
             const created = await processorService.createBatch(reqData);
             setBatches((prev) => [created, ...prev]);
-            setFormSuccess(`🎉 Tạo Lô '${created.batchCode}' thành công! Đã đẩy dữ liệu lên IPFS & Smart Contract.`);
+            setFormSuccess(`🎉 Tạo Lô '${created.batchCode}' thành công! Đã đẩy dữ liệu IPFS & Ký giao dịch Smart Contract bằng ví Hợp tác xã.`);
 
             // Reset form sau 1.5s & đóng modal
             setTimeout(() => {
@@ -242,8 +246,13 @@ export const BatchManagementPage: React.FC = () => {
 
         const matchesStage = filterStage === 'ALL' || b.currentStage === filterStage;
 
-        return matchesSearch && matchesStage;
+        // Kiểm tra xem lô có bị lỗi / kiểm định thất bại hay không
+        const isFailed = b.currentStage === 'INSPECTION_FAILED' || b.currentStage === 'FAILED';
+        const passesFailedCheck = hideFailedBatches ? !isFailed : true;
+
+        return matchesSearch && matchesStage && passesFailedCheck;
     });
+
 
     // Các cột cho AppTable
     const columns: Column<BatchDto>[] = [
@@ -337,32 +346,33 @@ export const BatchManagementPage: React.FC = () => {
                         <span>Quản Lý Lô Sản Xuất (Hợp Tác Xã)</span>
                     </h2>
                     <p className="text-xs text-slate-500 mt-1">
-                        Khởi tạo Lô sản xuất, phân công nông dân, ghi nhận dữ liệu On-Chain & IPFS Hash (`/api/v1/processor/batches`)
+                        Khởi tạo Lô sản xuất, phân công nông dân, ghi nhận dữ liệu On-Chain & IPFS Hash
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
+                <div className="flex items-center gap-3">
+                    <AppButton
+                        variant="outline"
                         onClick={fetchData}
                         disabled={loading}
-                        className="p-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                        leftIcon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />}
+                        className="text-xs font-semibold px-4 py-2.5 h-10 shadow-2xs"
                     >
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        <span>Tải lại</span>
-                    </button>
+                        Tải lại
+                    </AppButton>
 
                     <AppButton
                         variant="green"
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="flex items-center gap-2 text-xs font-bold px-4 py-2.5 shadow-sm"
+                        leftIcon={<Plus className="w-4 h-4" />}
+                        className="text-xs font-semibold px-4 py-2.5 h-10 shadow-sm"
                     >
-                        <Plus className="w-4 h-4" />
-                        <span>Tạo Lô Sản Xuất Mới</span>
+                        Tạo Lô Sản Xuất Mới
                     </AppButton>
-
-
-
                 </div>
+
+
+
             </div>
 
             {/* Thống kê Tổng quan (Cards) */}
@@ -436,6 +446,35 @@ export const BatchManagementPage: React.FC = () => {
                             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                         />
                     </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Lọc Trạng Thái:</span>
+
+                        <select
+                            value={filterStage}
+                            onChange={(e) => setFilterStage(e.target.value)}
+                            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-emerald-500"
+                        >
+                            <option value="ALL">Tất cả giai đoạn</option>
+                            <option value="STAGE_CREATED">Mới khởi tạo</option>
+                            <option value="STAGE_ACCEPTED">Đang canh tác</option>
+                            <option value="STAGE_HARVESTED">Đã thu hoạch</option>
+                            <option value="STAGE_RECEIVED">HTX Tiếp nhận</option>
+                            <option value="STAGE_PACKAGED">Đã đóng gói</option>
+                            <option value="INSPECTION_FAILED">⚠️ Kiểm định thất bại (Lô lỗi)</option>
+                        </select>
+
+                        {/* Checkbox Ẩn lô bị lỗi */}
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold cursor-pointer bg-slate-100 px-3 py-2 rounded-xl hover:bg-slate-200 transition-all select-none">
+                            <input
+                                type="checkbox"
+                                checked={hideFailedBatches}
+                                onChange={(e) => setHideFailedBatches(e.target.checked)}
+                                className="w-3.5 h-3.5 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span>Ẩn lô bị lỗi</span>
+                        </label>
+                    </div>
+
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Lọc Trạng Thái:</span>

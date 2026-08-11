@@ -17,6 +17,7 @@ import {
     Shield,
     Lock,
     UserCog,
+    Eye,
 } from 'lucide-react';
 
 // Modals
@@ -25,6 +26,7 @@ import { ApproveUserModal } from './modals/ApproveUserModal';
 import { LockUserModal } from './modals/LockUserModal';
 import { BlockchainWhitelistModal } from './modals/BlockchainWhitelistModal';
 import { ChangeRoleModal } from './modals/ChangeRoleModal';
+import { UserDetailModal } from './modals/UserDetailModal';
 export interface UserAccountResponse {
     id: string;
     fullName: string;
@@ -57,7 +59,7 @@ export const AccountManagementPage: React.FC = () => {
     // Modal Control State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserAccountResponse | null>(null);
-    const [activeModal, setActiveModal] = useState<'APPROVE' | 'LOCK' | 'WHITELIST' | 'ROLE' | null>(null);
+    const [activeModal, setActiveModal] = useState<'APPROVE' | 'LOCK' | 'WHITELIST' | 'ROLE' | 'DETAIL' | null>(null);
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
     // KẾT NỐI API LẤY USER THỰC TẾ
@@ -213,11 +215,26 @@ export const AccountManagementPage: React.FC = () => {
             key: 'fullName',
             render: (item) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs">
+                    <div
+                        onClick={() => {
+                            setSelectedUser(item);
+                            setActiveModal('DETAIL');
+                        }}
+                        className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all shrink-0"
+                        title="Xem chi tiết"
+                    >
                         {item.fullName ? item.fullName.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <div>
-                        <p className="font-bold text-slate-900">{item.fullName}</p>
+                        <button
+                            onClick={() => {
+                                setSelectedUser(item);
+                                setActiveModal('DETAIL');
+                            }}
+                            className="font-bold text-slate-900 hover:text-purple-700 transition-colors text-left cursor-pointer"
+                        >
+                            {item.fullName}
+                        </button>
                         <p className="text-xs text-slate-400 font-mono">ID: {item.id.substring(0, 8)}...</p>
                     </div>
                 </div>
@@ -303,14 +320,24 @@ export const AccountManagementPage: React.FC = () => {
                             />
 
                             {/* Dropdown Menu nổi lên trên z-30 */}
-                            <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-left text-xs">
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-left text-xs">
+                                <button
+                                    onClick={() => {
+                                        setSelectedUser(item);
+                                        setActiveModal('DETAIL');
+                                        setActiveMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-purple-700 bg-purple-50/60 hover:bg-purple-100 flex items-center gap-2 font-bold cursor-pointer"
+                                >
+                                    <Eye className="w-3.5 h-3.5 text-purple-600" /> Xem chi tiết
+                                </button>
                                 <button
                                     onClick={() => {
                                         setSelectedUser(item);
                                         setActiveModal('APPROVE');
                                         setActiveMenuId(null);
                                     }}
-                                    className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+                                    className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer border-t border-slate-100"
                                 >
                                     <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Duyệt / Từ chối
                                 </button>
@@ -496,6 +523,18 @@ export const AccountManagementPage: React.FC = () => {
                     setSelectedUser(null);
                 }}
                 onSuccess={fetchUsers}
+            />
+
+            <UserDetailModal
+                isOpen={activeModal === 'DETAIL'}
+                user={selectedUser}
+                onClose={() => {
+                    setActiveModal(null);
+                    setSelectedUser(null);
+                }}
+                onOpenActionModal={(action) => {
+                    setActiveModal(action);
+                }}
             />
 
         </div>

@@ -16,6 +16,7 @@ import {
     Truck,
     ShoppingBag,
     Settings,
+    Wrench,
 } from 'lucide-react';
 import type { UserRole } from '../../types';
 
@@ -36,6 +37,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ role = 'ADMIN' }) => {
         { icon: Settings, label: 'Thiết lập', path: '/cooperative/settings' },
         { icon: MapPin, label: 'Quản lý Vùng trồng', path: '/cooperative/farms' },
         { icon: Layers, label: 'Quản lý Lô sản xuất', path: '/cooperative/batches' },
+        { icon: Wrench, label: 'Chế biến & Đóng gói', path: '/cooperative/processing' },
+
+
         { icon: Users, label: 'Quản lý Nhân công', path: '/cooperative/workers' },
         { icon: Package, label: 'Quản lý Kho', path: '/cooperative/inventory' },
         { icon: Activity, label: 'Quy trình sản xuất', path: '/cooperative/process' },

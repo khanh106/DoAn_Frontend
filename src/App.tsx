@@ -15,7 +15,7 @@ import { FarmerProgressPage } from './pages/farmer/FarmerProgressPage';
 import { FarmerHarvestPage } from './pages/farmer/FarmerHarvestPage';
 import { FarmerGuidesPage } from './pages/farmer/FarmerGuidesPage';
 import { ProfilePage } from './pages/common/ProfilePage';
-
+import { PostHarvestProcessingPage } from './pages/processor/PostHarvestProcessingPage';
 import { BlockchainContractsPage } from './pages/admin/BlockchainContractsPage';
 import { SystemLogsPage } from './pages/admin/SystemLogsPage';
 
@@ -142,6 +142,8 @@ export const App: React.FC = () => {
             <Route path="/processor/batches" element={<BatchManagementPage />} />
             <Route path="/cooperative/profile" element={<ProfilePage />} />
             <Route path="/processor/profile" element={<ProfilePage />} />
+            <Route path="/cooperative/processing" element={<PostHarvestProcessingPage />} />
+            <Route path="/processor/processing" element={<PostHarvestProcessingPage />} />
 
 
             <Route path="/processor/fruit-products" element={<FruitProductManagementPage />} />

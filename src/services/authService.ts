@@ -21,6 +21,12 @@ export const authService = {
         return response.data;
     },
 
+    // PUT /api/v1/users/wallet-address - Cập nhật địa chỉ ví Blockchain
+    async updateWalletAddress(walletAddress: string, privateKey?: string): Promise<boolean> {
+        const response = await apiClient.put<boolean>('/v1/users/wallet-address', { walletAddress, privateKey });
+        return response.data;
+    },
+
     // POST /api/v1/auth/login - Đăng nhập
     async login(payload: LoginRequest): Promise<AuthResponse> {
         const response = await apiClient.post<AuthResponse>('/v1/auth/login', payload);

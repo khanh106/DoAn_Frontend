@@ -31,6 +31,8 @@ export interface RegisterRequest {
     password: string;
     // RoleType enum từ Backend: 2 = FARMER, 3 = PROCESSOR, 4 = RETAILER
     roleRequested: 'FARMER' | 'PROCESSOR' | 'RETAILER' | number;
+    walletAddress?: string;
+
 }
 
 export interface RefreshTokenRequest {

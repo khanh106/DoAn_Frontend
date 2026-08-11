@@ -31,7 +31,7 @@ export interface FarmAreaDto {
     soilType?: string;
     gps?: string;
     plantingCode?: string;
-    createdAt?: string; // 👈 Thêm dòng này
+    createdAt?: string;
     updatedAt?: string;
 }
 
@@ -44,6 +44,17 @@ export interface DistributorDto {
     address: string;
     taxCode?: string;
     status: string;
+    retailerId?: string;
+}
+
+export interface SearchRetailerResultDto {
+    retailerId: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    walletAddress?: string;
+    isLinked: boolean;
+    distributorId?: string;
 }
 
 export interface MaterialItemDto {
@@ -97,6 +108,7 @@ export interface UserWorkerDto {
     walletAddress?: string;
     status: string;
 }
+
 export interface BatchWorkerDto {
     userId: string;
     fullName: string;
@@ -140,6 +152,7 @@ export interface CreateBatchRequest {
     assignedWorkerIds: string[];
     representativeWorkerId: string;
 }
+
 export interface SearchWorkerResultDto {
     workerId: string;
     fullName: string;
@@ -148,6 +161,7 @@ export interface SearchWorkerResultDto {
     walletAddress?: string;
     linkStatus: 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED';
 }
+
 export interface ProcessStepDto {
     id?: string;
     stage: string;
@@ -164,24 +178,56 @@ export interface ProductionProcessDto {
     createdAt?: string;
     steps: ProcessStepDto[];
 }
+
 export interface CultivationLogDto {
     id: string;
     batchId: string;
     batchCode: string;
     userId: string;
     userFullName: string;
-    activityType: string; // WATERING, FERTILIZING, PESTICIDE, HARVESTING, PRUNING, INSPECTION, OTHER
+    activityType: string;
     description: string;
     logDate: string;
     metadataURI?: string;
     imageUrls: string[];
     createdAt: string;
 }
+
 export interface CreateCultivationLogForm {
     activityType: string;
     description: string;
     logDate: string;
     images?: File[];
+}
+
+// DTOs cho Chế biến & Đóng gói Sau Thu Hoạch (Task 07 & Task 08)
+export interface ReceiveBatchRequest {
+    receivedDate: string;
+    quantity: number;
+    unit: string;
+    deliveryPerson: string;
+    conditionNote: string;
+}
+
+export interface ClassifyOnlyRequest {
+    classificationNote: string;
+    gradeDetails: { grade: string; quantity: number; note?: string }[];
+}
+
+export interface SplitBatchRequest {
+    subBatches: { subBatchCode: string; classification: string; quantity: number }[];
+}
+
+export interface PackageInputDto {
+    packDate: string;
+    weight: number;
+    specification: string;
+    usageGuide: string;
+    storageGuide: string;
+    color: string;
+    smell: string;
+    standard: string;
+    note?: string;
 }
 
 export const processorService = {
@@ -191,7 +237,9 @@ export const processorService = {
         return response.data;
     },
     createBatch: async (data: CreateBatchRequest): Promise<BatchDto> => {
-        const response = await apiClient.post<BatchDto>('/v1/processor/batches', data);
+        const response = await apiClient.post<BatchDto>('/v1/processor/batches', data, {
+            timeout: 120000,
+        });
         return response.data;
     },
     getBatchById: async (id: string): Promise<BatchDto> => {
@@ -220,7 +268,6 @@ export const processorService = {
         await apiClient.delete(`/v1/processor/farm-areas/${id}`);
     },
 
-
     // Vật tư (Materials)
     getMaterials: async (): Promise<MaterialItemDto[]> => {
         const response = await apiClient.get<MaterialItemDto[]>('/v1/processor/materials');
@@ -240,7 +287,6 @@ export const processorService = {
     deleteMaterial: async (id: string): Promise<void> => {
         await apiClient.delete(`/v1/processor/materials/${id}`);
     },
-
 
     // Loại hoa quả (Fruit Types)
     getFruitTypes: async (): Promise<FruitTypeDto[]> => {
@@ -279,18 +325,19 @@ export const processorService = {
         const response = await apiClient.put<FarmAreaDto>(`/v1/processor/farm-areas/${id}`, data);
         return response.data;
     },
-    // Tìm kiếm công nhân & xem trạng thái liên kết
+
+    // Công nhân & Lời mời
     searchWorkers: async (keyword?: string): Promise<SearchWorkerResultDto[]> => {
         const response = await apiClient.get<SearchWorkerResultDto[]>('/v1/processor/workers/search', {
             params: { keyword }
         });
         return response.data;
     },
-    // Gửi lời mời liên kết tới công nhân
     sendWorkerInvitation: async (workerId: string): Promise<void> => {
         await apiClient.post('/v1/processor/workers/invite', { workerId });
     },
-    // Quy trình sản xuất (Production Process - Backend API)
+
+    // Quy trình sản xuất
     getProcesses: async (): Promise<ProductionProcessDto[]> => {
         const response = await apiClient.get<ProductionProcessDto[]>('/v1/processor/processes');
         return response.data;
@@ -301,10 +348,7 @@ export const processorService = {
         return response.data;
     },
 
-
-
-
-    // Nhật ký sản xuất / canh tác (Cultivation Logs)
+    // Nhật ký canh tác
     getCultivationLogsByBatch: async (batchId: string): Promise<CultivationLogDto[]> => {
         const response = await apiClient.get<CultivationLogDto[]>(`/v1/farmer/batches/${batchId}/logs`);
         return response.data;
@@ -317,17 +361,37 @@ export const processorService = {
         return response.data;
     },
 
-    // Nhân công / Nông dân (Workers)
     getWorkers: async (): Promise<UserWorkerDto[]> => {
-        const response = await apiClient.get<UserWorkerDto[]>('/v1/admin/users', {
-            params: { role: 'FARMER' }
-        });
-        return response.data;
+        const response = await apiClient.get<SearchWorkerResultDto[]>('/v1/processor/workers/search');
+        const acceptedWorkers = response.data.filter(w => w.linkStatus === 'ACCEPTED');
+        const listToReturn = acceptedWorkers.length > 0 ? acceptedWorkers : response.data;
+
+        return listToReturn.map(w => ({
+            id: w.workerId,
+            fullName: w.fullName,
+            email: w.email,
+            phoneNumber: w.phone,
+            role: 'FARMER',
+            walletAddress: w.walletAddress,
+            status: w.linkStatus
+        }));
     },
 
     // Nhà phân phối / Đối tác (Distributors)
     getDistributors: async (): Promise<DistributorDto[]> => {
         const response = await apiClient.get<DistributorDto[]>('/v1/processor/distributors');
+        return response.data;
+    },
+
+    searchRetailers: async (keyword?: string): Promise<SearchRetailerResultDto[]> => {
+        const response = await apiClient.get<SearchRetailerResultDto[]>('/v1/processor/distributors/search-retailers', {
+            params: { keyword },
+        });
+        return response.data;
+    },
+
+    linkRetailer: async (retailerId: string): Promise<DistributorDto> => {
+        const response = await apiClient.post<DistributorDto>(`/v1/processor/distributors/link/${retailerId}`);
         return response.data;
     },
 
@@ -338,5 +402,79 @@ export const processorService = {
 
     deleteDistributor: async (id: string): Promise<void> => {
         await apiClient.delete(`/v1/processor/distributors/${id}`);
-    }
+    },
+
+    // ============================================================================
+    // HÀM CHẾ BIẾN & ĐÓNG GÓI SAU THU HOẠCH (TASK 07 & TASK 08)
+    // ============================================================================
+
+    // 1. receiveBatch
+    receiveBatch: async (batchId: string, data: ReceiveBatchRequest) => {
+        const res = await apiClient.post(`/v1/processor/batches/${batchId}/receive`, data);
+        return res.data;
+    },
+
+    // 2. processBatch
+    processBatch: async (batchId: string, formData: FormData) => {
+        const res = await apiClient.post(`/v1/processor/batches/${batchId}/process`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
+    },
+
+    // 3. classifyOnlyBatch
+    classifyOnlyBatch: async (batchId: string, data: ClassifyOnlyRequest) => {
+        const res = await apiClient.post(`/v1/processor/batches/${batchId}/classify-only`, data);
+        return res.data;
+    },
+
+    // 4. splitBatch
+    splitBatch: async (batchId: string, data: SplitBatchRequest) => {
+        const res = await apiClient.post(`/v1/processor/batches/${batchId}/split`, data);
+        return res.data;
+    },
+
+    // 5. inspectParent
+    inspectParent: async (batchId: string, formData: FormData) => {
+        const res = await apiClient.post(`/v1/processor/inspections/parent/${batchId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
+    },
+
+    // 6. inspectSub
+    inspectSub: async (subBatchId: string, formData: FormData) => {
+        const res = await apiClient.post(`/v1/processor/inspections/sub/${subBatchId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
+    },
+
+    // 7. packageParent
+    packageParent: async (batchId: string, formData: FormData) => {
+        const res = await apiClient.post(`/v1/processor/packagings/parent/${batchId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
+    },
+
+    // 8. packageSub
+    packageSub: async (subBatchId: string, formData: FormData) => {
+        const res = await apiClient.post(`/v1/processor/packagings/sub/${subBatchId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return res.data;
+    },
+};
+
+// Export postHarvestService làm alias để tương thích với các trang gọi riêng biệt
+export const postHarvestService = {
+    receiveBatch: processorService.receiveBatch,
+    processBatch: processorService.processBatch,
+    classifyOnlyBatch: processorService.classifyOnlyBatch,
+    splitBatch: processorService.splitBatch,
+    inspectParent: processorService.inspectParent,
+    inspectSub: processorService.inspectSub,
+    packageParent: processorService.packageParent,
+    packageSub: processorService.packageSub,
 };

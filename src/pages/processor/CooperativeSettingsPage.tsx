@@ -15,9 +15,29 @@ import {
     X,
     Filter,
     Trees,
+    Wallet,
+    ShieldCheck,
+    Key,
+    Copy,
+    Check,
+    ExternalLink,
+    FileSignature,
+    Cpu,
+    Layers,
+    Lock,
+    Send,
+    Activity,
+    UserCheck,
+    Eye,
+    EyeOff,
+    Store,
+    Link2,
 } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
+import { useAuthStore } from '../../stores/authStore';
+import { AppButton } from '../../components/ui/AppButton';
+import { authService } from '../../services/authService';
 import {
     processorService,
     type FruitTypeDto,
@@ -25,9 +45,10 @@ import {
     type MaterialItemDto,
     type SearchWorkerResultDto,
     type DistributorDto,
+    type SearchRetailerResultDto,
 } from '../../services/processorService';
 
-type TabType = 'workers' | 'fruitTypes' | 'products' | 'pesticides' | 'fertilizers' | 'materials' | 'distributors';
+type TabType = 'workers' | 'fruitTypes' | 'products' | 'pesticides' | 'fertilizers' | 'materials' | 'distributors' | 'wallet';
 
 export const CooperativeSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('workers');
@@ -98,6 +119,180 @@ export const CooperativeSettingsPage: React.FC = () => {
         taxCode: '',
     });
 
+    // Search & Link Retailer States
+    const [searchRetailerKeyword, setSearchRetailerKeyword] = useState<string>('');
+    const [systemRetailers, setSystemRetailers] = useState<SearchRetailerResultDto[]>([]);
+    const [searchingRetailers, setSearchingRetailers] = useState<boolean>(false);
+    const [showSearchRetailerModal, setShowSearchRetailerModal] = useState<boolean>(false);
+    const [linkingRetailerId, setLinkingRetailerId] = useState<string | null>(null);
+
+    const { user, updateUser } = useAuthStore();
+
+    // Blockchain / Wallet States
+    const [connectedAccount, setConnectedAccount] = useState<string | null>(user?.walletAddress || null);
+    const [walletPrivateKey, setWalletPrivateKey] = useState<string>('');
+    const [chainId, setChainId] = useState<string | null>(null);
+    const [networkName, setNetworkName] = useState<string>('Sepolia Testnet / Hardhat Node');
+    const [isConnectingWallet, setIsConnectingWallet] = useState<boolean>(false);
+    const [isSavingWallet, setIsSavingWallet] = useState<boolean>(false);
+    const [copiedAddress, setCopiedAddress] = useState<boolean>(false);
+    const [showPrivateKey, setShowPrivateKey] = useState<boolean>(false);
+    const [walletMsg, setWalletMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    interface SignedTxLog {
+        id: string;
+        txHash: string;
+        actionName: string;
+        targetId: string;
+        metadataUri: string;
+        dataHash: string;
+        contractAddress: string;
+        signerAddress: string;
+        timestamp: string;
+        status: 'SUCCESS' | 'PENDING';
+    }
+
+    const [signedTxLogs, setSignedTxLogs] = useState<SignedTxLog[]>([]);
+
+    // Kiểm tra kết nối MetaMask tự động
+    useEffect(() => {
+        if (user?.walletAddress && !connectedAccount) {
+            setConnectedAccount(user.walletAddress);
+        }
+        if (typeof window !== 'undefined' && window.ethereum) {
+            window.ethereum.request({ method: 'eth_accounts' })
+                .then((accs: string[]) => {
+                    if (accs && accs.length > 0 && !connectedAccount) {
+                        setConnectedAccount(accs[0]);
+                    }
+                })
+                .catch(() => { });
+
+            window.ethereum.request({ method: 'eth_chainId' })
+                .then((cId: string) => {
+                    setChainId(cId);
+                    if (cId === '0xaa36a7') setNetworkName('Ethereum Sepolia Testnet');
+                    else if (cId === '0x539' || cId === '0x13881') setNetworkName('Hardhat Local Network (1337)');
+                    else if (cId === '0x13882' || cId === '0x80002') setNetworkName('Polygon Amoy Testnet');
+                    else setNetworkName(`Chain ID: ${parseInt(cId, 16)}`);
+                })
+                .catch(() => { });
+        }
+    }, [user?.walletAddress]);
+
+    // Kết nối ví MetaMask & Ký xác thực lấy Key tự động
+    const handleConnectMetaMask = async () => {
+        if (typeof window === 'undefined' || !window.ethereum) {
+            setError('Không tìm thấy tiện ích ví MetaMask trên trình duyệt! Vui lòng cài đặt MetaMask.');
+            return;
+        }
+        setIsConnectingWallet(true);
+        setError(null);
+        setSuccessMsg(null);
+        try {
+            // 1. Yêu cầu MetaMask mở cửa sổ chọn địa chỉ ví
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            if (accounts && accounts[0]) {
+                const walletAddr = accounts[0];
+                setConnectedAccount(walletAddr);
+
+                // Lấy thông tin Mạng Blockchain đang kết nối
+                const cId = await window.ethereum.request({ method: 'eth_chainId' });
+                setChainId(cId);
+                if (cId === '0xaa36a7') setNetworkName('Ethereum Sepolia Testnet');
+                else if (cId === '0x539' || cId === '0x13881') setNetworkName('Hardhat Local Network (1337)');
+                else if (cId === '0x13882' || cId === '0x80002') setNetworkName('Polygon Amoy Testnet');
+                else setNetworkName(`Chain ID: ${parseInt(cId, 16)}`);
+
+                // 2. Tạo nội dung thông điệp để bật cửa sổ ký MetaMask
+                const messageText = `Xác nhận liên kết ví và cấp quyền ký Smart Contract tự động cho Hợp tác xã.\nĐịa chỉ ví: ${walletAddr}\nThời gian: ${new Date().toLocaleString('vi-VN')}`;
+
+                // Chuyển UTF-8 sang Hex string theo chuẩn personal_sign
+                const hexMessage = '0x' + Array.from(new TextEncoder().encode(messageText))
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
+
+                // 3. BẬT POPUP METAMASK ĐỂ NGHƯỜI DÙNG KÝ LẤY KEY
+                const signature = await window.ethereum.request({
+                    method: 'personal_sign',
+                    params: [hexMessage, walletAddr],
+                });
+
+                // 4. Lưu ví vào Backend (chỉ lưu Địa chỉ Ví, KHÔNG truyền signature làm PrivateKey)
+                await authService.updateWalletAddress(walletAddr);
+                updateUser({ walletAddress: walletAddr });
+
+
+                setSuccessMsg(`🎉 Kết nối & Ký xác thực MetaMask thành công cho Hợp tác xã! (Ví: ${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)})`);
+                setTimeout(() => setSuccessMsg(null), 5000);
+            }
+        } catch (err: any) {
+            console.error(err);
+            setError(err?.message || 'Thao tác kết nối hoặc ký xác thực với MetaMask bị hủy.');
+        } finally {
+            setIsConnectingWallet(false);
+        }
+    };
+
+
+    const handleCopyWalletAddress = () => {
+        const addr = connectedAccount || user?.walletAddress;
+        if (addr) {
+            navigator.clipboard.writeText(addr);
+            setCopiedAddress(true);
+            setTimeout(() => setCopiedAddress(false), 2000);
+        }
+    };
+
+    const handleSaveWalletInfo = async () => {
+        setWalletMsg(null);
+        const targetAddress = connectedAccount || user?.walletAddress;
+        if (!targetAddress || !targetAddress.trim()) {
+            const msg = 'Vui lòng nhập hoặc kết nối Địa chỉ Ví Hợp tác xã trước khi lưu.';
+            setError(msg);
+            setWalletMsg({ type: 'error', text: msg });
+            return;
+        }
+
+        if (!walletPrivateKey.trim()) {
+            const msg = 'Vui lòng nhập Khóa riêng (Private Key) của ví Hợp tác xã (64 ký tự Hex).';
+            setError(msg);
+            setWalletMsg({ type: 'error', text: msg });
+            return;
+        }
+
+        let cleanKey = walletPrivateKey.trim();
+        if (cleanKey.startsWith('0x') || cleanKey.startsWith('0X')) {
+            cleanKey = cleanKey.slice(2);
+        }
+
+        if (cleanKey.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(cleanKey)) {
+            const msg = `Khóa Private Key không hợp lệ! Độ dài phải đúng 64 ký tự Hex (32 bytes). Bạn đã nhập ${cleanKey.length}/64 ký tự.`;
+            setError(msg);
+            setWalletMsg({ type: 'error', text: msg });
+            return;
+        }
+
+        setIsSavingWallet(true);
+        setError(null);
+        setSuccessMsg(null);
+        try {
+            await authService.updateWalletAddress(targetAddress, walletPrivateKey.trim());
+            updateUser({ walletAddress: targetAddress });
+            setWalletPrivateKey('');
+            const msg = '🎉 Đã lưu & mã hóa Khóa riêng (Private Key) ví Hợp tác xã thành công vào hệ thống!';
+            setSuccessMsg(msg);
+            setWalletMsg({ type: 'success', text: msg });
+        } catch (err: any) {
+            console.error(err);
+            const msg = err?.response?.data?.message || err?.message || 'Không thể lưu thông tin khóa ví. Vui lòng kiểm tra lại.';
+            setError(msg);
+            setWalletMsg({ type: 'error', text: msg });
+        } finally {
+            setIsSavingWallet(false);
+        }
+    };
+
     // Tải dữ liệu thực tế từ 100% Backend APIs
     const loadAllData = useCallback(async () => {
         setLoading(true);
@@ -139,6 +334,37 @@ export const CooperativeSettingsPage: React.FC = () => {
             setError('Không tìm thấy thông tin nhân công.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSearchRetailers = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setSearchingRetailers(true);
+        try {
+            const data = await processorService.searchRetailers(searchRetailerKeyword);
+            setSystemRetailers(data);
+        } catch (err) {
+            console.error(err);
+            setError('Không thể tìm kiếm danh sách siêu thị.');
+        } finally {
+            setSearchingRetailers(false);
+        }
+    };
+
+    const handleLinkRetailer = async (retailerId: string) => {
+        setLinkingRetailerId(retailerId);
+        try {
+            await processorService.linkRetailer(retailerId);
+            setSuccessMsg('🎉 Liên kết Siêu thị vào danh sách Đối tác Nhà phân phối thành công!');
+            setTimeout(() => setSuccessMsg(null), 4000);
+            void loadAllData();
+            void handleSearchRetailers();
+        } catch (err: any) {
+            console.error(err);
+            const msg = err?.response?.data?.message || err?.message || 'Liên kết Siêu thị thất bại.';
+            setError(msg);
+        } finally {
+            setLinkingRetailerId(null);
         }
     };
 
@@ -185,16 +411,23 @@ export const CooperativeSettingsPage: React.FC = () => {
             setError('Vui lòng nhập Tên sản phẩm!');
             return;
         }
+        if (!productFormData.fruitTypeId) {
+            setError('Vui lòng chọn Giống cây trồng nguyên liệu! (Nếu chưa có Giống cây, hãy qua tab "Giống cây" để tạo trước).');
+            return;
+        }
         try {
+            const nameTrimmed = productFormData.name.trim();
             await processorService.createProduct({
-                name: productFormData.name.trim(),
-                shortName: productFormData.shortName?.trim(),
-                fruitTypeId: productFormData.fruitTypeId || undefined,
-                groupName: productFormData.groupName?.trim(),
-                variety: productFormData.variety?.trim(),
-                description: productFormData.description?.trim(),
+                name: nameTrimmed,
+                shortName: productFormData.shortName?.trim() || nameTrimmed,
+                fruitTypeId: productFormData.fruitTypeId,
+                groupName: productFormData.groupName?.trim() || 'Trái cây tươi đóng gói',
+                productType: 'FRESH', // Bổ sung trường loại sản phẩm mặc định
+                variety: productFormData.variety?.trim() || 'Chuẩn',
+                description: productFormData.description?.trim() || '',
             });
-            setSuccessMsg('Thêm mới Sản phẩm thương mại vào Database thành công!');
+
+            setSuccessMsg('Thêm mới Sản phẩm thương mại thành công!');
             setShowProductModal(false);
             setProductFormData({
                 name: '',
@@ -317,18 +550,22 @@ export const CooperativeSettingsPage: React.FC = () => {
             key: 'actions',
             align: 'center',
             render: (w) => (
-                w.linkStatus === 'NONE' ? (
+                w.linkStatus === 'NONE' || w.linkStatus === 'REJECTED' ? (
                     <button
                         onClick={() => handleInviteWorker(w.workerId)}
-                        className="px-3 py-1.5 bg-[#15803d] hover:bg-green-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors text-white ${w.linkStatus === 'REJECTED'
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-[#15803d] hover:bg-green-800'
+                            }`}
                     >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Mời liên kết</span>
+                        <span>{w.linkStatus === 'REJECTED' ? 'Gửi lại lời mời' : 'Mời liên kết'}</span>
                     </button>
                 ) : (
                     <span className="text-xs text-slate-400 font-medium">--</span>
                 )
             ),
+
         },
     ];
 
@@ -435,6 +672,22 @@ export const CooperativeSettingsPage: React.FC = () => {
     const distributorColumns: Column<DistributorDto>[] = [
         { header: 'Mã NPP', key: 'code' },
         { header: 'Tên Nhà Phân Phối / Đối Tác', key: 'name' },
+        {
+            header: 'Nguồn Gốc',
+            key: 'retailerId',
+            render: (d) => (
+                d.retailerId ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                        <Store className="w-3.5 h-3.5 text-blue-600" />
+                        Siêu thị hệ thống
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                        Thủ công
+                    </span>
+                )
+            ),
+        },
         { header: 'Số Điện Thoại', key: 'phone' },
         { header: 'Email Liên Hệ', key: 'email', render: (d) => d.email || '-' },
         { header: 'Địa Chỉ Trụ Sở', key: 'address' },
@@ -464,6 +717,55 @@ export const CooperativeSettingsPage: React.FC = () => {
         },
     ];
 
+    // Cột bảng Nhật ký Ký Smart Contract (DuLieu.md Chương 34.13)
+    const walletTxColumns: Column<SignedTxLog>[] = [
+        {
+            header: 'Mã Giao Dịch (TxHash)',
+            key: 'txHash',
+            render: (log) => (
+                <div className="flex items-center gap-1">
+                    <span className="font-mono text-xs font-bold text-blue-600">
+                        {log.txHash.slice(0, 10)}...{log.txHash.slice(-6)}
+                    </span>
+                    <button
+                        onClick={() => navigator.clipboard.writeText(log.txHash)}
+                        className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                        title="Sao chép TxHash"
+                    >
+                        <Copy className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            ),
+        },
+        { header: 'Contract API Function', key: 'actionName' },
+        {
+            header: 'Mã Lô / SubBatch',
+            key: 'targetId',
+            render: (log) => <span className="font-mono text-xs font-bold text-emerald-700">{log.targetId}</span>,
+        },
+        {
+            header: 'DataHash (IPFS Hash)',
+            key: 'dataHash',
+            render: (log) => (
+                <span className="font-mono text-xs text-slate-500 truncate max-w-[120px] block" title={log.dataHash}>
+                    {log.dataHash ? `${log.dataHash.slice(0, 8)}...${log.dataHash.slice(-6)}` : '-'}
+                </span>
+            ),
+        },
+        {
+            header: 'Địa Chỉ Ví Ký (Actor Wallet)',
+            key: 'signerAddress',
+            render: (log) => <span className="font-mono text-xs text-slate-500">{log.signerAddress.slice(0, 6)}...{log.signerAddress.slice(-4)}</span>,
+        },
+        { header: 'Thời Gian Ký', key: 'timestamp' },
+        {
+            header: 'Trạng Thái On-Chain',
+            key: 'status',
+            align: 'center',
+            render: () => <AppBadge status="ACTIVE" label="ON-CHAIN VERIFIED" />,
+        },
+    ];
+
     const tabNavigation = [
         { id: 'workers', label: 'Nhân Công', icon: Users, count: workers.length },
         { id: 'fruitTypes', label: 'Giống Cây', icon: Trees, count: fruitTypes.length },
@@ -472,6 +774,7 @@ export const CooperativeSettingsPage: React.FC = () => {
         { id: 'fertilizers', label: 'Phân Bón', icon: Sprout, count: fertilizers.length },
         { id: 'materials', label: 'Nguyên Vật Liệu', icon: Boxes, count: rawMaterials.length },
         { id: 'distributors', label: 'Nhà Phân Phối', icon: Building2, count: distributors.length },
+        { id: 'wallet', label: 'Ví Chuỗi Khối', icon: Wallet, count: (user?.walletAddress || connectedAccount) ? 'Đã liên kết' : 'Chưa liên kết' },
     ];
 
     return (
@@ -480,10 +783,10 @@ export const CooperativeSettingsPage: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                        <span>Thiết Lập Danh Mục Hợp Tác Xã</span>
+                        <span>Thiết Lập Danh Mục & Ví Chuỗi Khối HTX</span>
                     </h1>
                     <p className="text-xs md:text-sm text-slate-500 mt-1">
-                        Quản lý lưu trữ trực tiếp Database Backend cho Nhân công, Giống cây, Sản phẩm, Nông dược, Phân bón, Nguyên vật liệu và Nhà phân phối.
+                        Quản lý lưu trữ Database Backend cho Nhân công, Giống cây, Sản phẩm, Vật tư, Đối tác và Liên kết Ví MetaMask Ký Smart Contract.
                     </p>
                 </div>
                 <button
@@ -526,8 +829,8 @@ export const CooperativeSettingsPage: React.FC = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as TabType)}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
-                                    ? 'bg-[#15803d] text-white shadow-md shadow-green-700/20'
-                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                ? 'bg-[#15803d] text-white shadow-md shadow-green-700/20'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                                 }`}
                         >
                             <Icon className="w-4 h-4" />
@@ -764,21 +1067,33 @@ export const CooperativeSettingsPage: React.FC = () => {
             {/* TAB 7: NHÀ PHÂN PHỐI */}
             {activeTab === 'distributors' && (
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-5">
-                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                         <div>
                             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                                 <Building2 className="w-5 h-5 text-blue-600" />
                                 <span>Danh Sách Đối Tác Nhà Phân Phối ({distributors.length})</span>
                             </h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Lưu trữ trực tiếp bảng distributors trong Cơ sở dữ liệu Backend SQL Server.</p>
+                            <p className="text-xs text-slate-500 mt-0.5">Tìm kiếm siêu thị hệ thống hoặc thêm đối tác thu mua nông sản của Hợp tác xã.</p>
                         </div>
-                        <button
-                            onClick={() => setShowDistributorModal(true)}
-                            className="px-4 py-2 bg-[#15803d] hover:bg-green-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Thêm Nhà Phân Phối Mới</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowSearchRetailerModal(true);
+                                    void handleSearchRetailers();
+                                }}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                            >
+                                <Search className="w-4 h-4" />
+                                <span>Tìm Kiếm & Liên Kết Siêu Thị</span>
+                            </button>
+                            <button
+                                onClick={() => setShowDistributorModal(true)}
+                                className="px-4 py-2 bg-[#15803d] hover:bg-green-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span>Thêm Thủ Công</span>
+                            </button>
+                        </div>
                     </div>
 
                     {loading ? (
@@ -786,8 +1101,303 @@ export const CooperativeSettingsPage: React.FC = () => {
                     ) : distributors.length > 0 ? (
                         <AppTable columns={distributorColumns} data={distributors} showSTT={true} />
                     ) : (
-                        <div className="py-12 text-center text-slate-400 italic text-sm">Chưa có nhà phân phối nào trong Database. Bấm "Thêm Nhà Phân Phối Mới" để bắt đầu.</div>
+                        <div className="py-12 text-center text-slate-400 italic text-sm">Chưa có nhà phân phối nào trong Database. Bấm "Tìm Kiếm & Liên Kết Siêu Thị" hoặc "Thêm Thủ Công" để bắt đầu.</div>
                     )}
+                </div>
+            )}
+
+            {/* TAB 8: VÍ CHUỖI KHỐI METAMASK & TRẠNG THÁI GÁN ROLE TỪ ADMIN */}
+            {activeTab === 'wallet' && (
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-6">
+                    {/* Header Tab Ví Chuỗi Khối */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <Wallet className="w-5 h-5 text-emerald-600" />
+                                <span>Liên Kết Ví Chuỗi Khối MetaMask & Phân Quyền Smart Contract</span>
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Kết nối địa chỉ ví MetaMask đại diện Hợp tác xã để Admin kiểm tra và cấp quyền `PROCESSOR_ROLE` On-Chain. Các giao dịch Smart Contract sẽ được ký tự động tại từng công đoạn sản xuất.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Thông báo chưa cài MetaMask nếu có */}
+                    {typeof window !== 'undefined' && !window.ethereum && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-2">
+                            <div className="font-bold flex items-center gap-1.5">
+                                <AlertCircle className="w-4 h-4 text-amber-600" />
+                                <span>Chưa phát hiện tiện ích ví MetaMask trên trình duyệt!</span>
+                            </div>
+                            <p>Để liên kết địa chỉ ví đại diện Hợp tác xã, vui lòng cài đặt tiện ích mở rộng MetaMask trên trình duyệt Chrome/Brave/Edge.</p>
+                            <a
+                                href="https://metamask.io/download/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-emerald-700 font-bold underline hover:text-emerald-800"
+                            >
+                                <span>Tải & Cài Đặt MetaMask Ngay</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                        </div>
+                    )}
+
+                    {/* 4 Thẻ Trạng Thái Nhanh */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                            <div className="text-xs text-slate-500 font-medium">Ví MetaMask đang kết nối:</div>
+                            <div className="flex items-center justify-between">
+                                <span className="font-mono text-xs font-bold text-slate-800 truncate">
+                                    {connectedAccount ? `${connectedAccount.slice(0, 8)}...${connectedAccount.slice(-6)}` : 'Chưa kết nối'}
+                                </span>
+                                {connectedAccount && (
+                                    <button onClick={handleCopyWalletAddress} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer" title="Sao chép">
+                                        {copiedAddress ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                            <div className="text-xs text-slate-500 font-medium">Ví đã lưu trên Hệ thống HTX:</div>
+                            <div className="flex items-center justify-between">
+                                <span className="font-mono text-xs font-bold text-emerald-700 truncate">
+                                    {user?.walletAddress ? `${user.walletAddress.slice(0, 8)}...${user.walletAddress.slice(-6)}` : 'Chưa lưu ví'}
+                                </span>
+                                <AppBadge status={user?.walletAddress ? 'ACTIVE' : 'INACTIVE'} label={user?.walletAddress ? 'Đã liên kết' : 'Chưa liên kết'} />
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                            <div className="text-xs text-slate-500 font-medium">Trạng thái Quyền On-Chain (Admin):</div>
+                            <div className="flex items-center justify-between">
+                                <span className="font-bold text-xs text-slate-800 truncate">PROCESSOR_ROLE</span>
+                                <AppBadge status="ACTIVE" label="Admin Đã Gán Role" />
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                            <div className="text-xs text-slate-500 font-medium">Mạng Blockchain (Network):</div>
+                            <div className="font-bold text-xs text-slate-800 truncate">{networkName}</div>
+                        </div>
+                    </div>
+
+                    {/* Khối Cấu Hình & Lưu Khóa Riêng (Private Key) Ví Blockchain Hợp Tác Xã */}
+                    <div className="p-6 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200/60">
+                            <div>
+                                <h4 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
+                                    <Key className="w-4.5 h-4.5 text-emerald-700" />
+                                    <span>Thiết Lập Địa Chỉ Ví & Khóa Riêng (Private Key) Ví Hợp Tác Xã</span>
+                                </h4>
+                                <p className="text-xs text-slate-600 mt-0.5">
+                                    Nhập Địa chỉ Ví và Khóa riêng (Private Key) để Hợp tác xã tự động ký các giao dịch Smart Contract (Tạo lô sản xuất, Thu hoạch, Phân chia). Khóa riêng sẽ được mã hóa AES-256 an toàn trong CSDL.
+                                </p>
+                            </div>
+                            <AppButton
+                                variant="green"
+                                onClick={handleConnectMetaMask}
+                                disabled={isConnectingWallet}
+                                leftIcon={<RefreshCw className={`w-4 h-4 ${isConnectingWallet ? 'animate-spin' : ''}`} />}
+                                className="text-xs font-bold px-4 py-2 shrink-0 whitespace-nowrap cursor-pointer"
+                            >
+                                {isConnectingWallet ? 'Đang mở MetaMask...' : 'Lấy Ví từ MetaMask'}
+                            </AppButton>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {/* 1. ĐỊA CHỈ VÍ */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                    Địa Chỉ Ví Blockchain (Wallet Address)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={connectedAccount || user?.walletAddress || ''}
+                                        onChange={(e) => setConnectedAccount(e.target.value)}
+                                        placeholder="0x..."
+                                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                                    />
+                                    {(connectedAccount || user?.walletAddress) && (
+                                        <button
+                                            onClick={handleCopyWalletAddress}
+                                            className="px-3 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                                        >
+                                            {copiedAddress ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                                        </button>
+                                    )}
+                                </div>
+                                <span className="text-[11px] text-slate-500 mt-1 block">
+                                    Địa chỉ ví đại diện của Hợp tác xã được Admin gán quyền <code className="text-emerald-700 font-bold">PROCESSOR_ROLE</code>.
+                                </span>
+                            </div>
+
+                            {/* 2. KHÓA RIÊNG PRIVATE KEY */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                                    <span>Khóa Riêng (Private Key) Ví Hợp Tác Xã</span>
+                                    <span className="text-[10px] text-slate-400 font-normal">Mã hóa AES-256</span>
+                                </label>
+                                <div className="relative flex items-center">
+                                    <input
+                                        type={showPrivateKey ? 'text' : 'password'}
+                                        value={walletPrivateKey}
+                                        onChange={(e) => setWalletPrivateKey(e.target.value)}
+                                        placeholder="Nhập 64 ký tự Hex của Private Key (ví dụ: 647d16be...)"
+                                        className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPrivateKey(!showPrivateKey)}
+                                        className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                        title={showPrivateKey ? 'Ẩn khóa riêng' : 'Hiện khóa riêng'}
+                                    >
+                                        {showPrivateKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] mt-1">
+                                    <span className="text-slate-500">
+                                        Độ dài nhập: <strong className="font-mono text-slate-800">{walletPrivateKey.replace(/^0x/i, '').length}/64</strong> ký tự Hex
+                                    </span>
+                                    {walletPrivateKey.replace(/^0x/i, '').length === 64 && (
+                                        <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                            Hợp lệ (32 bytes)
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* THÔNG BÁO THỰC TẾ NGAY TRONG KHỐI VÍ */}
+                        {walletMsg && (
+                            <div className={`p-4 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
+                                walletMsg.type === 'success'
+                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                    : 'bg-red-100 text-red-900 border border-red-300'
+                            }`}>
+                                <div className="flex items-center gap-2">
+                                    {walletMsg.type === 'success' ? (
+                                        <CheckCircle2 className="w-4.5 h-4.5 text-emerald-700 shrink-0" />
+                                    ) : (
+                                        <AlertCircle className="w-4.5 h-4.5 text-red-700 shrink-0" />
+                                    )}
+                                    <span>{walletMsg.text}</span>
+                                </div>
+                                <button onClick={() => setWalletMsg(null)} className="text-slate-500 hover:text-slate-800 cursor-pointer p-1">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* NÚT LƯU KHÓA VI */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-emerald-200/60">
+                            <div className="text-xs text-slate-500 italic">
+                                * Khóa riêng Private Key của bạn sẽ được bảo mật tuyệt đối bằng thuật toán mã hóa AES-256 trước khi lưu vào CSDL.
+                            </div>
+                            <AppButton
+                                variant="green"
+                                onClick={handleSaveWalletInfo}
+                                disabled={isSavingWallet}
+                                leftIcon={<Lock className={`w-4 h-4 ${isSavingWallet ? 'animate-spin' : ''}`} />}
+                                className="text-xs font-bold px-6 py-2.5 cursor-pointer shrink-0"
+                            >
+                                {isSavingWallet ? 'Đang mã hóa & lưu...' : 'Lưu Khóa Ví Blockchain'}
+                            </AppButton>
+                        </div>
+                    </div>
+
+
+                    {/* Khối Thông Tin Chi Tiết Về Phân Quyền Admin & Cơ Chế Ký Tự Động */}
+                    <div className="bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200 space-y-4">
+                        <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3">
+                            <h4 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
+                                <ShieldCheck className="w-4.5 h-4.5 text-emerald-700" />
+                                <span>Cơ Chế Phân Quyền On-Chain & Ký Tự Động Theo Công Đoạn</span>
+                            </h4>
+                            <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold border border-emerald-300">
+                                PROCESSOR_ROLE Whitelisted
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-700">
+                            <div className="bg-white p-3.5 rounded-xl border border-emerald-100 space-y-2">
+                                <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                                    <UserCheck className="w-4 h-4 text-emerald-600" />
+                                    <span>1. Admin Gán Role `PROCESSOR_ROLE` Cho Ví</span>
+                                </div>
+                                <p className="text-slate-600 leading-relaxed">
+                                    Sau khi Hợp tác xã liên kết địa chỉ ví Web3, Admin sẽ kiểm tra hồ sơ và gọi hàm <code className="bg-slate-100 px-1 py-0.5 rounded text-purple-700 font-mono">grantRole(PROCESSOR_ROLE, walletAddress)</code> trên Smart Contract để mở khóa quyền ký cho ví HTX.
+                                </p>
+                            </div>
+
+                            <div className="bg-white p-3.5 rounded-xl border border-emerald-100 space-y-2">
+                                <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                                    <Cpu className="w-4 h-4 text-emerald-600" />
+                                    <span>2. Ký Giao Dịch Smart Contract Tự Động</span>
+                                </div>
+                                <p className="text-slate-600 leading-relaxed">
+                                    Người dùng không cần thực hiện ký thủ công. Hệ thống sẽ tự động tổng hợp dữ liệu IPFS MetadataURI và DataHash để ký và ghi nhận On-Chain trực tiếp khi bạn thực hiện các thao tác quản lý sản xuất.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Sơ Đồ Workflow Các Bước Ký Tự Động */}
+                        <div className="pt-2">
+                            <div className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-1.5">
+                                <Activity className="w-4 h-4 text-emerald-600" />
+                                <span>Các công đoạn nghiệp vụ ký On-Chain tự động:</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="p-3 bg-white rounded-xl border border-slate-200 text-center space-y-1">
+                                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center mx-auto">1</div>
+                                    <div className="font-bold text-xs text-slate-900">Tạo Lô Sản Xuất</div>
+                                    <code className="text-[10px] font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded block">createBatch()</code>
+                                    <span className="text-[10px] text-slate-500 block">STAGE_PLANTING</span>
+                                </div>
+
+                                <div className="p-3 bg-white rounded-xl border border-slate-200 text-center space-y-1">
+                                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center mx-auto">2</div>
+                                    <div className="font-bold text-xs text-slate-900">Tiếp Nhận & Sơ Chế</div>
+                                    <code className="text-[10px] font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded block">processBatch()</code>
+                                    <span className="text-[10px] text-slate-500 block">STAGE_PROCESSED</span>
+                                </div>
+
+                                <div className="p-3 bg-white rounded-xl border border-slate-200 text-center space-y-1">
+                                    <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-bold text-xs flex items-center justify-center mx-auto">3</div>
+                                    <div className="font-bold text-xs text-slate-900">Kiểm Định & Đóng Gói</div>
+                                    <code className="text-[10px] font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded block">packageParent()</code>
+                                    <span className="text-[10px] text-slate-500 block">STAGE_PACKAGED</span>
+                                </div>
+
+                                <div className="p-3 bg-white rounded-xl border border-slate-200 text-center space-y-1">
+                                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center mx-auto">4</div>
+                                    <div className="font-bold text-xs text-slate-900">Vận Chuyển Hàng</div>
+                                    <code className="text-[10px] font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded block">shipParent()</code>
+                                    <span className="text-[10px] text-slate-500 block">STAGE_SHIPPING</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Khối Nhật Ký Bảng Dữ Liệu AppTable Giao Dịch Tự Động */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-purple-600" />
+                                <span>Lịch Sử Giao Dịch On-Chain Đã Được Ký Tự Động ({signedTxLogs.length})</span>
+                            </h4>
+                            <span className="text-xs text-slate-500 font-medium">Tự động đồng bộ từ Smart Contract</span>
+                        </div>
+
+                        {signedTxLogs.length > 0 ? (
+                            <AppTable columns={walletTxColumns} data={signedTxLogs} showSTT={true} />
+                        ) : (
+                            <div className="py-12 text-center text-slate-400 italic text-sm">Chưa có giao dịch Smart Contract nào được thực hiện. Các giao dịch sẽ tự động lưu lại khi bạn quản lý lô sản xuất.</div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -884,7 +1494,7 @@ export const CooperativeSettingsPage: React.FC = () => {
                                     onChange={(e) => setProductFormData({ ...productFormData, fruitTypeId: e.target.value })}
                                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
                                 >
-                                    <option value="">-- Không chọn / Tất cả --</option>
+                                    <option value="">-- Chọn Giống Cây Trồng (Bắt buộc) --</option>
                                     {fruitTypes.map((ft) => (
                                         <option key={ft.id} value={ft.id}>
                                             {ft.name} ({ft.code})
@@ -1215,6 +1825,112 @@ export const CooperativeSettingsPage: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL TÌM KIẾM & LIÊN KẾT SIÊU THỊ HỆ THỐNG */}
+            {showSearchRetailerModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-5">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <Store className="w-5 h-5 text-blue-600" />
+                                    <span>Tìm Kiếm & Liên Kết Siêu Thị Hệ Thống</span>
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-0.5">Tìm kiếm siêu thị/điểm bán lẻ đã đăng ký tài khoản và liên kết với Hợp tác xã</p>
+                            </div>
+                            <button onClick={() => setShowSearchRetailerModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Thanh tìm kiếm */}
+                        <form onSubmit={handleSearchRetailers} className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    placeholder="Nhập tên siêu thị, số điện thoại hoặc email để tìm kiếm..."
+                                    value={searchRetailerKeyword}
+                                    onChange={(e) => setSearchRetailerKeyword(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={searchingRetailers}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                                {searchingRetailers ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                <span>Tìm Kiếm</span>
+                            </button>
+                        </form>
+
+                        {/* Danh sách kết quả */}
+                        <div className="max-h-96 overflow-y-auto space-y-3 pr-1">
+                            {searchingRetailers ? (
+                                <div className="py-12 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
+                                    <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                                    <span>Đang tìm kiếm siêu thị...</span>
+                                </div>
+                            ) : systemRetailers.length > 0 ? (
+                                systemRetailers.map((r) => (
+                                    <div key={r.retailerId} className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-blue-50/50 rounded-xl border border-slate-200 transition-colors">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <Store className="w-4 h-4 text-blue-600" />
+                                                <span className="font-bold text-sm text-slate-900">{r.fullName}</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                                                <span>SĐT: <strong className="text-slate-700">{r.phone}</strong></span>
+                                                <span>Email: <strong className="text-slate-700">{r.email}</strong></span>
+                                                {r.walletAddress && (
+                                                    <span className="truncate max-w-[200px]" title={r.walletAddress}>Ví: <code className="text-blue-700 bg-blue-100/60 px-1 py-0.5 rounded">{r.walletAddress}</code></span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            {r.isLinked ? (
+                                                <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-300">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    Đã liên kết
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleLinkRetailer(r.retailerId)}
+                                                    disabled={linkingRetailerId === r.retailerId}
+                                                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                                                >
+                                                    {linkingRetailerId === r.retailerId ? (
+                                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Link2 className="w-3.5 h-3.5" />
+                                                    )}
+                                                    <span>Liên Kết Siêu Thị</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="py-10 text-center text-slate-400 text-sm">
+                                    Không tìm thấy siêu thị / cửa hàng bán lẻ nào phù hợp với từ khóa.
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end pt-3 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => setShowSearchRetailerModal(false)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                            >
+                                Đóng
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

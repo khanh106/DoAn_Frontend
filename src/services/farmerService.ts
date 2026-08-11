@@ -13,6 +13,19 @@ export interface AssignedBatch {
     assignedDate?: string;
     workerStatus: string;
 }
+export interface ProcessorWorkerLinkDto {
+    id: string;
+    processorId: string;
+    processorName: string;
+    workerId: string;
+    workerName: string;
+    workerEmail: string;
+    workerPhone: string;
+    workerWalletAddress?: string;
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    invitedAt: string;
+    respondedAt?: string;
+}
 
 export interface CultivationLog {
     id: string;
@@ -129,6 +142,13 @@ export const farmerService = {
     // 7. Lấy danh sách Hướng dẫn quy trình sản xuất của Hợp tác xã liên kết
     getProcessGuides: async (): Promise<FarmerProductionProcess[]> => {
         const response = await apiClient.get<FarmerProductionProcess[]>('/v1/farmer/processes');
+        return response.data;
+    },
+    // Lấy danh sách lời mời liên kết từ HTX
+    getInvitations: async (status?: string): Promise<ProcessorWorkerLinkDto[]> => {
+        const response = await apiClient.get<ProcessorWorkerLinkDto[]>('/v1/farmer/invitations', {
+            params: { status },
+        });
         return response.data;
     },
 };

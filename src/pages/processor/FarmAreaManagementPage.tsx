@@ -240,16 +240,7 @@ export const FarmAreaManagementPage: React.FC = () => {
             key: 'soilType',
             render: (item) => <span className="text-xs text-slate-600">{item.soilType || 'Chưa cập nhật'}</span>,
         },
-        {
-            header: 'Tọa Độ GPS',
-            key: 'gps',
-            render: (item) => (
-                <span className="inline-flex items-center gap-1 font-mono text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-md">
-                    <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                    {item.gps || 'Chưa định vị'}
-                </span>
-            ),
-        },
+
         {
             header: 'Thao Tác',
             key: 'id',
@@ -670,13 +661,6 @@ export const FarmAreaManagementPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
-                                <MapPin className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-                                <div>
-                                    <p className="text-xs text-slate-400 uppercase font-semibold">Tọa Độ GPS</p>
-                                    <p className="font-mono text-xs text-slate-800 mt-0.5">{selectedArea.gps || 'Chưa định vị'}</p>
-                                </div>
-                            </div>
 
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-3">
                                 <Calendar className="w-5 h-5 text-slate-400 mt-0.5 shrink-0" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Search, UserPlus, RefreshCw, AlertCircle, CheckCircle, Clock, Eye, Wallet, Phone, Mail } from 'lucide-react';
+import { Users, Search, UserPlus, RefreshCw, AlertCircle, CheckCircle, Clock, Eye, Wallet, Phone, Mail, Building2 } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
@@ -246,6 +246,19 @@ export const WorkerManagementPage: React.FC = () => {
                                 <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-800 break-all">
                                     {selectedWorker.walletAddress || 'Chưa được cấp ví Custodial'}
                                 </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4 text-slate-400" />
+                                <span className="font-semibold text-slate-500">Trạng Thái Liên Kết HTX:</span>
+                                {selectedWorker.linkStatus === 'ACCEPTED' ? (
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded font-bold text-[11px]">
+                                        Đã liên kết với Hợp tác xã
+                                    </span>
+                                ) : (
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-medium text-[11px]">
+                                        Chưa liên kết
+                                    </span>
+                                )}
                             </div>
                         </div>
 
