@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AxiosError } from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
+
 import {
     QrCode,
     Printer,
@@ -32,7 +34,7 @@ import {
     type ShelfItemConfig,
     type RetailerQualityRecord
 } from '../../services/retailerService';
-import { type QRCodeInfoDto, type QRTargetType } from '../../services/shippingAndQrService';
+import { type QRCodeInfoDto } from '../../services/shippingAndQrService';
 
 export const RetailerQRCodesPage: React.FC = () => {
     // Data States (Thuần dữ liệu thực từ Backend API)
@@ -58,11 +60,10 @@ export const RetailerQRCodesPage: React.FC = () => {
     const [traceData, setTraceData] = useState<any | null>(null);
     const [traceLoading, setTraceLoading] = useState<boolean>(false);
 
-    // QR Generation Modal
-    const [genModalShipment, setGenModalShipment] = useState<ShipmentHistoryDto | null>(null);
-    const [genTargetType, setGenTargetType] = useState<QRTargetType>('COMMERCIAL');
-    const [genLoading, setGenLoading] = useState<boolean>(false);
-    const [genResult, setGenResult] = useState<any | null>(null);
+    // QR View Modal (Xem QR tạo sẵn từ HTX)
+    const [viewQrShipment, setViewQrShipment] = useState<ShipmentHistoryDto | null>(null);
+    const [viewQrCodes, setViewQrCodes] = useState<QRCodeInfoDto[]>([]);
+    const [viewQrLoading, setViewQrLoading] = useState<boolean>(false);
 
     // Web Scanner Tab State
     const [scanInputCode, setScanInputCode] = useState<string>('');
@@ -126,23 +127,20 @@ export const RetailerQRCodesPage: React.FC = () => {
         }
     };
 
-    // Gọi Backend API phát hành mã QR thương mại mới (POST /api/v1/processor/qrcodes/generate)
-    const handleGenerateQr = async () => {
-        if (!genModalShipment) return;
-        setGenLoading(true);
-        setGenResult(null);
-        const targetId = genModalShipment.subBatchId || genModalShipment.batchId || genModalShipment.id;
+    // Lấy danh sách QR code đã tạo sẵn từ HTX cho vận đơn
+    const handleViewExistingQr = async (shipment: ShipmentHistoryDto) => {
+        setViewQrShipment(shipment);
+        setViewQrLoading(true);
+        setViewQrCodes([]);
         try {
-            const result = await retailerService.generateQrCode(genTargetType, targetId);
-            setGenResult(result);
-            setSuccessMessage(`✅ Đã phát hành Mã QR thương mại (${genTargetType}) thành công trên hệ thống!`);
-            void loadData();
+            const codes = await retailerService.getQrCodesForShipment(shipment.id);
+            setViewQrCodes(Array.isArray(codes) ? codes : []);
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            console.error('Lỗi phát hành QR:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể tạo mã QR. Vui lòng kiểm tra quyền truy cập.');
+            console.error('Lỗi lấy QR codes:', errorObj);
+            setViewQrCodes([]);
         } finally {
-            setGenLoading(false);
+            setViewQrLoading(false);
         }
     };
 
@@ -226,38 +224,57 @@ export const RetailerQRCodesPage: React.FC = () => {
         { id: 'batch-print', label: 'In Tem Nhãn Khổ A4 Hàng Loạt' }
     ];
 
-    // Các cột bảng danh mục tương thích chuẩn AppTable (dùng key và render)
+    // Các cột bảng danh mục tương thích chuẩn AppTable
     const catalogColumns: Column<ShipmentHistoryDto>[] = [
         {
             header: 'MÃ LÔ / VẬN ĐƠN',
             key: 'shippingCode',
-            render: (item) => (
-                <div className="flex flex-col gap-1">
-                    <div className="font-semibold text-slate-800 flex items-center gap-1.5">
-                        <ShoppingBag className="w-4 h-4 text-green-600 shrink-0" />
-                        {item.subBatchCode || item.batchCode || item.shippingCode}
+            render: (item) => {
+                const code = item.subBatchCode || item.batchCode || item.shippingCode;
+                return (
+                    <div className="flex flex-col gap-1 max-w-[200px]">
+                        <div className="font-semibold text-slate-800 flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5 truncate">
+                                <ShoppingBag className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span className="font-mono text-sm tracking-tight">{code}</span>
+                            </span>
+                            <button
+                                onClick={() => handleCopy(code, item.id + '-code')}
+                                className="text-slate-400 hover:text-emerald-600 transition-colors p-0.5 rounded hover:bg-slate-100"
+                                title="Sao chép mã"
+                            >
+                                {copiedId === item.id + '-code' ? (
+                                    <Check className="w-3.5 h-3.5 text-green-600" />
+                                ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                )}
+                            </button>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
+                            <span>Vận đơn:</span>
+                            <span className="bg-slate-100 px-1 py-0.2 rounded text-slate-600 font-bold">{item.shippingCode}</span>
+                        </div>
                     </div>
-                    <div className="text-xs text-slate-500 font-mono">
-                        Vận đơn: {item.shippingCode}
-                    </div>
-                </div>
-            )
+                );
+            }
         },
         {
-            header: 'LOẠI SẢN PHẨM & QR',
+            header: 'PHÂN LOẠI & TRỌNG LƯỢNG',
             key: 'qrType',
             render: (item) => {
                 const isSub = !!item.subBatchId;
                 return (
-                    <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5">
+                    <div className="flex flex-col gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1">
                             <AppBadge variant={isSub ? 'purple' : 'blue'}>
                                 {isSub ? 'Lô con (SubBatch)' : 'Lô gốc (Batch)'}
                             </AppBadge>
-                            <AppBadge variant="green">QR On-Chain</AppBadge>
+                            <AppBadge variant="green">
+                                {item.weight.toLocaleString('vi-VN')} kg
+                            </AppBadge>
                         </div>
-                        <span className="text-xs text-slate-500">
-                            Mã chuỗi cung ứng chuẩn
+                        <span className="text-[11px] text-slate-500 font-medium">
+                            {isSub ? 'Phát hành từ Lô con HTX' : 'Đơn vị nguyên đai gốc'}
                         </span>
                     </div>
                 );
@@ -269,12 +286,19 @@ export const RetailerQRCodesPage: React.FC = () => {
             render: (item) => {
                 const config = shelfConfigs?.[item.id];
                 return (
-                    <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-green-700">
-                            {config?.unitPriceVnd ? `${config.unitPriceVnd.toLocaleString('vi-VN')} đ/kg` : 'Chưa cài giá'}
-                        </span>
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                            <Tag className="w-3 h-3 text-slate-400" />
+                    <div className="flex flex-col gap-1">
+                        {config?.unitPriceVnd ? (
+                            <span className="inline-flex items-center w-fit px-2 py-0.5 bg-emerald-50 text-emerald-800 text-xs font-extrabold rounded-lg border border-emerald-200">
+                                <Tag className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                                {config.unitPriceVnd.toLocaleString('vi-VN')} đ/kg
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center w-fit px-2 py-0.5 bg-amber-50 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
+                                Chưa cài giá
+                            </span>
+                        )}
+                        <span className="text-xs text-slate-500 flex items-center gap-1 font-semibold pl-1">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
                             {config?.shelfLocation || 'Chưa gán kệ'}
                         </span>
                     </div>
@@ -287,16 +311,24 @@ export const RetailerQRCodesPage: React.FC = () => {
             render: (item) => {
                 const qa = qualityRecords?.[item.id];
                 if (!qa) {
-                    return <AppBadge variant="yellow">Chưa kiểm định</AppBadge>;
+                    return (
+                        <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-lg">
+                            Chờ kiểm định
+                        </span>
+                    );
                 }
+                const starRating = '★'.repeat(qa.freshnessRating) + '☆'.repeat(5 - qa.freshnessRating);
                 return (
                     <div className="flex flex-col gap-1">
                         <AppBadge variant={qa.qaResult === 'PASSED' ? 'green' : 'red'}>
-                            {qa.qaResult === 'PASSED' ? 'Đạt QA (Đã duyệt)' : 'Cảnh báo'}
+                            {qa.qaResult === 'PASSED' ? '✓ Đạt QA' : '⚠️ Cảnh báo'}
                         </AppBadge>
-                        <span className="text-[11px] text-slate-500">
-                            {qa.sensoryGrade} • Tươi: {qa.freshnessRating}/5⭐
-                        </span>
+                        <div className="text-[11px] text-slate-500 font-medium">
+                            Phân hạng: <span className="font-bold text-slate-700">{qa.sensoryGrade.replace('GRADE_', 'Hạng ')}</span>
+                        </div>
+                        <div className="text-xs text-amber-500 font-bold tracking-wider" title={`Độ tươi: ${qa.freshnessRating}/5`}>
+                            {starRating}
+                        </div>
                     </div>
                 );
             }
@@ -306,12 +338,31 @@ export const RetailerQRCodesPage: React.FC = () => {
             key: 'status',
             render: (item) => {
                 if (item.readyForSaleDate) {
-                    return <AppBadge variant="green">Đang bán trên kệ</AppBadge>;
+                    return (
+                        <div className="flex flex-col gap-0.5">
+                            <AppBadge variant="green">Đang bán trên kệ</AppBadge>
+                            <span className="text-[10px] text-slate-400 pl-1 font-medium">
+                                {new Date(item.readyForSaleDate).toLocaleDateString('vi-VN')}
+                            </span>
+                        </div>
+                    );
                 }
                 if (item.receivedDate) {
-                    return <AppBadge variant="blue">Đã tiếp nhận kho</AppBadge>;
+                    return (
+                        <div className="flex flex-col gap-0.5">
+                            <AppBadge variant="blue">Đã tiếp nhận kho</AppBadge>
+                            <span className="text-[10px] text-slate-400 pl-1 font-medium">
+                                {new Date(item.receivedDate).toLocaleDateString('vi-VN')}
+                            </span>
+                        </div>
+                    );
                 }
-                return <AppBadge variant="gray">Đang vận chuyển</AppBadge>;
+                return (
+                    <div className="flex flex-col gap-0.5">
+                        <AppBadge variant="gray">Đang vận chuyển</AppBadge>
+                        <span className="text-[10px] text-slate-400 pl-1 font-medium">Chưa tiếp nhận</span>
+                    </div>
+                );
             }
         },
         {
@@ -339,11 +390,8 @@ export const RetailerQRCodesPage: React.FC = () => {
                         </button>
 
                         <button
-                            onClick={() => {
-                                setGenModalShipment(item);
-                                setGenResult(null);
-                            }}
-                            title="Tạo mã QR thương mại mới"
+                            onClick={() => void handleViewExistingQr(item)}
+                            title="Xem mã QR lô hàng (từ HTX)"
                             className="p-1.5 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                         >
                             <QrCode className="w-4 h-4" />
@@ -368,6 +416,35 @@ export const RetailerQRCodesPage: React.FC = () => {
 
     return (
         <div className="space-y-6 pb-12 select-none">
+            {/* Tối ưu hóa layout in ấn cho Siêu thị */}
+            <style>{`
+                @media print {
+                    body {
+                        background: white !important;
+                    }
+                    /* Ẩn toàn bộ thành phần trên màn hình */
+                    body * {
+                        visibility: hidden;
+                    }
+                    /* Chỉ hiển thị vùng có class print-area */
+                    .print-area, .print-area * {
+                        visibility: visible;
+                    }
+                    /* Đưa vùng in ra sát góc trang giấy */
+                    .print-area {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        margin: 0 !important;
+                        padding: 10px !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                    }
+                }
+            `}</style>
+
             {/* TOP HEADER BANNER */}
             <div className="bg-gradient-to-r from-emerald-800 via-green-700 to-teal-800 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
@@ -781,25 +858,31 @@ export const RetailerQRCodesPage: React.FC = () => {
                                         return (
                                             <div
                                                 key={item.id}
-                                                className="border-2 border-slate-800 p-3 rounded-lg flex items-center justify-between gap-3 bg-white"
+                                                className={`border-2 border-slate-800 p-3 rounded-lg flex items-center justify-between gap-3 bg-white ${batchPrintPaper === 'A4_12' ? 'h-[140px]' : 'h-[110px]'
+                                                    }`}
                                             >
-                                                <div className="flex-1 space-y-1">
-                                                    <div className="text-[10px] font-bold text-green-800 uppercase">SIÊU THỊ TRUY XUẤT</div>
+                                                <div className="flex-1 space-y-1 min-w-0">
+                                                    <div className="text-[8px] font-extrabold text-emerald-800 uppercase tracking-wider">GREEN-MART TRUY XUẤT</div>
                                                     <div className="text-xs font-bold text-slate-900 truncate">
-                                                        {item.subBatchCode ? 'Trái Cây Lô Con' : 'Trái Cây VietGAP'}
+                                                        {item.subBatchCode ? 'Trái Cây Lô Con Hạng A' : 'Nông Sản VietGAP'}
                                                     </div>
-                                                    <div className="text-[10px] font-mono text-slate-600">{code}</div>
-                                                    <div className="text-sm font-extrabold text-green-700">
+                                                    <div className="text-[9px] font-mono text-slate-500 truncate">{code}</div>
+                                                    <div className="text-sm font-black text-red-600">
                                                         {config?.unitPriceVnd ? `${config.unitPriceVnd.toLocaleString('vi-VN')} đ/kg` : 'Chưa cài giá'}
+                                                    </div>
+                                                    <div className="text-[8px] text-slate-400">
+                                                        TL: {item.weight} kg | Kệ: {config?.shelfLocation || 'Kho'}
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-col items-center shrink-0">
-                                                    {/* Visual QR Simulator */}
-                                                    <div className="w-14 h-14 bg-slate-900 p-1 rounded flex items-center justify-center text-white">
-                                                        <QrCode className="w-12 h-12 text-white" />
-                                                    </div>
-                                                    <span className="text-[9px] font-mono text-slate-500 mt-0.5">ON-CHAIN</span>
+                                                <div className="flex flex-col items-center justify-center shrink-0 bg-slate-50 p-1 rounded-lg border border-slate-100">
+                                                    <QRCodeSVG
+                                                        value={`${window.location.origin}/trace/${code}`}
+                                                        size={batchPrintPaper === 'A4_12' ? 60 : 45}
+                                                        level="M"
+                                                        includeMargin={false}
+                                                    />
+                                                    <span className="text-[7px] font-bold text-slate-500 mt-1 uppercase">ON-CHAIN</span>
                                                 </div>
                                             </div>
                                         );
@@ -838,30 +921,94 @@ export const RetailerQRCodesPage: React.FC = () => {
                         </div>
 
                         {/* Visual Single Label Box */}
-                        <div className="flex justify-center p-6 bg-slate-100 rounded-2xl">
-                            <div className={`bg-white border-2 border-slate-900 p-4 rounded-xl shadow-lg flex items-center justify-between gap-4 ${printLabelSize === '50x30' ? 'w-[320px]' : 'w-[420px]'}`}>
-                                <div className="space-y-1 flex-1">
-                                    <div className="text-[10px] font-bold text-green-700 tracking-wider">SIÊU THỊ TRUY XUẤT NGUỒN GỐC</div>
-                                    <div className="font-bold text-slate-900 text-sm">
-                                        {printModalShipment.subBatchCode ? 'Trái Cây Tươi Loại 1' : 'Nông Sản VietGAP'}
+                        <div className="flex justify-center p-6 bg-slate-100 rounded-2xl print:bg-white print:p-0">
+                            {printLabelSize === '50x30' ? (
+                                /* Tem dán khay 50x30mm */
+                                <div className="print-area bg-white border-2 border-dashed border-slate-800 p-3 rounded-lg shadow-md flex items-center justify-between gap-3 w-[320px] h-[180px] print:shadow-none print:border-solid">
+                                    <div className="space-y-1.5 flex-1 min-w-0">
+                                        <div className="text-[9px] font-extrabold text-emerald-700 tracking-wider uppercase">★ GREEN-MART STICKER ★</div>
+                                        <h4 className="font-bold text-slate-900 text-sm truncate">
+                                            {printModalShipment.subBatchCode ? 'Trái Cây Tươi Hạng A' : 'Nông Sản Chuẩn VietGAP'}
+                                        </h4>
+                                        <div className="text-[10px] text-slate-500 font-mono truncate">
+                                            Lô: {printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode}
+                                        </div>
+                                        <div className="text-base font-black text-slate-900 mt-1">
+                                            {shelfConfigs[printModalShipment.id]?.unitPriceVnd
+                                                ? `${shelfConfigs[printModalShipment.id].unitPriceVnd.toLocaleString('vi-VN')} đ/kg`
+                                                : 'Chưa cài giá'}
+                                        </div>
+                                        <div className="text-[9px] text-slate-400 font-medium">
+                                            TL: {printModalShipment.weight} kg
+                                        </div>
                                     </div>
-                                    <div className="text-[11px] text-slate-500 font-mono">
-                                        Mã lô: {printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode}
-                                    </div>
-                                    <div className="text-lg font-extrabold text-green-800">
-                                        {shelfConfigs[printModalShipment.id]?.unitPriceVnd
-                                            ? `${shelfConfigs[printModalShipment.id].unitPriceVnd.toLocaleString('vi-VN')} đ/kg`
-                                            : 'Chưa cài giá'}
-                                    </div>
-                                </div>
 
-                                <div className="flex flex-col items-center">
-                                    <div className="w-20 h-20 bg-slate-900 p-1.5 rounded-lg text-white flex items-center justify-center">
-                                        <QrCode className="w-16 h-16 text-white" />
+                                    <div className="flex flex-col items-center justify-center shrink-0 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                                        <QRCodeSVG
+                                            value={`${window.location.origin}/trace/${printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode}`}
+                                            size={60}
+                                            level="M"
+                                            includeMargin={false}
+                                        />
+                                        <span className="text-[7px] font-black text-emerald-800 mt-1 uppercase tracking-tighter">TRUY XUẤT</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-700 mt-1">QUÉT TRUY XUẤT</span>
                                 </div>
-                            </div>
+                            ) : (
+                                /* Tem kệ hàng 80x50mm Premium */
+                                <div className="print-area bg-white border-2 border-slate-900 rounded-xl shadow-lg flex flex-col justify-between w-[400px] h-[240px] overflow-hidden print:shadow-none print:m-0">
+                                    <div className="bg-emerald-700 text-white px-3 py-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
+                                        <span className="flex items-center gap-1">
+                                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-200" />
+                                            Bảo Chứng Blockchain
+                                        </span>
+                                        <span className="text-emerald-100">VietGAP Quality</span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-3 gap-3 flex-1">
+                                        <div className="space-y-1.5 flex-1 min-w-0">
+                                            <h4 className="font-black text-slate-900 text-base leading-tight truncate">
+                                                {printModalShipment.subBatchCode ? 'Trái Cây Tươi Hạng A' : 'Nông Sản Chuẩn VietGAP'}
+                                            </h4>
+
+                                            <div className="text-[10px] text-slate-500 font-mono truncate">
+                                                Mã lô: <span className="font-semibold text-slate-800">{printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode}</span>
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                <span className="bg-emerald-50 text-emerald-700 text-[9px] font-extrabold px-1.5 py-0.5 rounded border border-emerald-200">
+                                                    ĐẠT QA
+                                                </span>
+                                                <span className="bg-slate-100 text-slate-600 text-[9px] font-semibold px-1.5 py-0.5 rounded">
+                                                    TL: {printModalShipment.weight} kg
+                                                </span>
+                                            </div>
+
+                                            <div className="text-2xl font-black text-red-600 leading-none pt-1">
+                                                {shelfConfigs[printModalShipment.id]?.unitPriceVnd
+                                                    ? `${shelfConfigs[printModalShipment.id].unitPriceVnd.toLocaleString('vi-VN')} đ/kg`
+                                                    : 'Chưa cài giá'}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col items-center justify-center bg-slate-50 p-2 rounded-xl border border-slate-200 shrink-0">
+                                            <div className="bg-white p-1 rounded-lg border border-slate-100">
+                                                <QRCodeSVG
+                                                    value={`${window.location.origin}/trace/${printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode}`}
+                                                    size={80}
+                                                    level="H"
+                                                    includeMargin={false}
+                                                />
+                                            </div>
+                                            <span className="text-[8px] font-black text-slate-700 mt-1 uppercase tracking-wider">QUÉT TRUY XUẤT</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex items-center justify-between text-[8px] font-semibold text-slate-500">
+                                        <span>Kệ hàng: {shelfConfigs[printModalShipment.id]?.shelfLocation || 'Khu Trưng Bày'}</span>
+                                        <span className="font-mono text-emerald-700">On-Chain QR Code</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
@@ -880,62 +1027,78 @@ export const RetailerQRCodesPage: React.FC = () => {
                 </AppModal>
             )}
 
-            {/* MODAL 2: GENERATE COMMERCIAL QR */}
-            {genModalShipment && (
+            {/* MODAL 2: XEM MÃ QR TẠO SẴN TỪ HTX */}
+            {viewQrShipment && (
                 <AppModal
-                    isOpen={!!genModalShipment}
-                    onClose={() => setGenModalShipment(null)}
-                    title="Phát Hành Mã QR Thương Mại Mới"
+                    isOpen={!!viewQrShipment}
+                    onClose={() => setViewQrShipment(null)}
+                    title="Mã QR Lô Hàng (Từ Hợp Tác Xã)"
                 >
                     <div className="space-y-4">
-                        <p className="text-xs text-slate-600">
-                            Phát hành mã QR Code chuẩn thương mại từ Backend API cho lô hàng:{' '}
-                            <span className="font-bold text-slate-800">
-                                {genModalShipment.subBatchCode || genModalShipment.batchCode || genModalShipment.shippingCode}
-                            </span>
-                        </p>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">Cấp Độ QR Code (TargetType)</label>
-                            <select
-                                value={genTargetType}
-                                onChange={(e) => setGenTargetType(e.target.value as QRTargetType)}
-                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
-                            >
-                                <option value="COMMERCIAL">COMMERCIAL (Tem thương mại bán lẻ)</option>
-                                <option value="BOX">BOX (Tem dán thùng nông sản)</option>
-                                <option value="SUBBATCH">SUBBATCH (Tem lô con)</option>
-                                <option value="BATCH">BATCH (Tem lô gốc)</option>
-                            </select>
+                        <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                            <div className="text-xs text-purple-600 font-medium">Mã lô hàng</div>
+                            <div className="font-bold text-purple-900 text-sm">
+                                {viewQrShipment.subBatchCode || viewQrShipment.batchCode || viewQrShipment.shippingCode}
+                            </div>
+                            <div className="text-[11px] text-purple-500 mt-0.5">
+                                Vận đơn: {viewQrShipment.shippingCode}
+                            </div>
                         </div>
 
-                        {genResult && (
-                            <div className="p-4 bg-green-50 border border-green-200 rounded-xl space-y-2">
-                                <div className="text-xs font-bold text-green-800">Mã QR Đã Sinh Thành Công:</div>
-                                <div className="text-xs font-mono text-slate-700">QR ID: {genResult.qrCodeId}</div>
-                                {genResult.imageBase64 && (
-                                    <div className="flex justify-center pt-2">
-                                        <img
-                                            src={`data:${genResult.imageContentType || 'image/png'};base64,${genResult.imageBase64}`}
-                                            alt="Generated QR"
-                                            className="w-32 h-32 border rounded-lg"
-                                        />
+                        {viewQrLoading ? (
+                            <div className="py-8 flex flex-col items-center justify-center text-slate-500">
+                                <RefreshCw className="w-6 h-6 animate-spin text-purple-600 mb-2" />
+                                <span className="text-xs">Đang tải mã QR từ hệ thống...</span>
+                            </div>
+                        ) : viewQrCodes.length === 0 ? (
+                            <div className="py-8 text-center">
+                                <QrCode className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                                <div className="text-sm font-bold text-slate-600">Chưa Có Mã QR Nào</div>
+                                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                                    Hợp tác xã chưa tạo mã QR cho lô hàng này. Vui lòng liên hệ HTX để phát hành mã QR truy xuất nguồn gốc.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                    <BadgeCheck className="w-4 h-4 text-green-600" />
+                                    Tìm thấy {viewQrCodes.length} mã QR đã tạo sẵn
+                                </div>
+                                {viewQrCodes.map((qr) => (
+                                    <div key={qr.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <AppBadge variant={qr.targetType === 'BATCH' ? 'blue' : qr.targetType === 'SUBBATCH' ? 'purple' : 'green'}>
+                                                {qr.targetType}
+                                            </AppBadge>
+                                            <AppBadge variant={qr.status === 'ACTIVE' ? 'green' : 'gray'}>
+                                                {qr.status === 'ACTIVE' ? 'Đang hoạt động' : qr.status}
+                                            </AppBadge>
+                                        </div>
+                                        <div className="text-xs text-slate-600">
+                                            <span className="font-medium text-slate-500">QR Value:</span>{' '}
+                                            <span className="font-mono text-slate-800 break-all">{qr.qrValue}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                                            <span>Ngày tạo: {new Date(qr.createdAt).toLocaleDateString('vi-VN')}</span>
+                                            <button
+                                                onClick={() => handleCopy(qr.qrValue, qr.id)}
+                                                className="flex items-center gap-1 text-slate-500 hover:text-emerald-600 transition-colors"
+                                            >
+                                                {copiedId === qr.id ? (
+                                                    <><Check className="w-3 h-3 text-green-600" /> Đã sao chép</>
+                                                ) : (
+                                                    <><Copy className="w-3 h-3" /> Sao chép</>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
-                                )}
+                                ))}
                             </div>
                         )}
 
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                            <AppButton variant="secondary" onClick={() => setGenModalShipment(null)}>
+                        <div className="flex justify-end pt-4 border-t border-slate-200">
+                            <AppButton variant="secondary" onClick={() => setViewQrShipment(null)}>
                                 Đóng
-                            </AppButton>
-                            <AppButton
-                                onClick={() => void handleGenerateQr()}
-                                disabled={genLoading}
-                                className="bg-purple-700 hover:bg-purple-800 text-white font-bold"
-                            >
-                                {genLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
-                                Phát Hành QR
                             </AppButton>
                         </div>
                     </div>

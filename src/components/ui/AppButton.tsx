@@ -21,7 +21,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
     disabled,
     ...props
 }) => {
-    const baseStyles = 'inline-flex items-center justify-center font-bold rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = 'inline-flex items-center justify-center font-bold rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap';
 
     const variantStyles = {
         green: 'bg-[#15803d] hover:bg-[#166534] text-white shadow-xs',

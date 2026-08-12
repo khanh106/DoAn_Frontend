@@ -271,18 +271,36 @@ export const processorService = {
     // Vật tư (Materials)
     getMaterials: async (): Promise<MaterialItemDto[]> => {
         const response = await apiClient.get<MaterialItemDto[]>('/v1/processor/materials');
-        return response.data;
+        return response.data.map(item => ({
+            ...item,
+            itemType: item.itemType === 'RAW_MATERIAL' ? 'MATERIAL' : item.itemType
+        }));
     },
 
     createMaterial: async (data: Partial<MaterialItemDto>): Promise<MaterialItemDto> => {
-        const response = await apiClient.post<MaterialItemDto>('/v1/processor/materials', data);
-        return response.data;
+        const payload = {
+            ...data,
+            itemType: data.itemType === 'MATERIAL' ? 'RAW_MATERIAL' : data.itemType
+        };
+        const response = await apiClient.post<MaterialItemDto>('/v1/processor/materials', payload);
+        return {
+            ...response.data,
+            itemType: response.data.itemType === 'RAW_MATERIAL' ? 'MATERIAL' : response.data.itemType
+        };
     },
 
     updateMaterial: async (id: string, data: Partial<MaterialItemDto>): Promise<MaterialItemDto> => {
-        const response = await apiClient.put<MaterialItemDto>(`/v1/processor/materials/${id}`, data);
-        return response.data;
+        const payload = {
+            ...data,
+            itemType: data.itemType === 'MATERIAL' ? 'RAW_MATERIAL' : data.itemType
+        };
+        const response = await apiClient.put<MaterialItemDto>(`/v1/processor/materials/${id}`, payload);
+        return {
+            ...response.data,
+            itemType: response.data.itemType === 'RAW_MATERIAL' ? 'MATERIAL' : response.data.itemType
+        };
     },
+
 
     deleteMaterial: async (id: string): Promise<void> => {
         await apiClient.delete(`/v1/processor/materials/${id}`);

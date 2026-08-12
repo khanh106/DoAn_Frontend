@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { translateStage } from '../../types';
+import { useUIStore } from '../../stores/uiStore';
+
+
 import {
     PackageCheck,
     Wrench,
@@ -20,7 +24,9 @@ export const PostHarvestProcessingPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'RECEIVE' | 'PROCESS' | 'SORT' | 'INSPECT' | 'PACKAGE'>('RECEIVE');
     const [batches, setBatches] = useState<BatchDto[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
-    const [submitting, setSubmitting] = useState<boolean>(false);
+    const submittingOperations = useUIStore((state) => state.submittingOperations);
+    const setSubmittingOperation = useUIStore((state) => state.setSubmittingOperation);
+
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     // Selected Batch
@@ -97,12 +103,47 @@ export const PostHarvestProcessingPage: React.FC = () => {
     useEffect(() => {
         loadBatches();
     }, []);
+    // Tự động chọn lô hàng phù hợp khi chuyển Tab hoặc khi danh sách thay đổi
+    useEffect(() => {
+        const filtered = batches.filter((b) => {
+            if (activeTab === 'RECEIVE') {
+                return (
+                    b.currentStage === 'STAGE_HARVESTED' ||
+                    b.currentStage === 'HARVESTED' ||
+                    b.currentStage === 'DA_THU_HOACH'
+                );
+            }
+            return true;
+        });
+
+        if (filtered.length > 0) {
+            // Nếu lô hiện tại không nằm trong danh sách đã lọc, chuyển sang chọn lô đầu tiên của danh sách mới
+            if (!filtered.some((b) => b.id === selectedBatchId)) {
+                setSelectedBatchId(filtered[0].id);
+            }
+        } else {
+            setSelectedBatchId('');
+        }
+    }, [activeTab, batches, selectedBatchId]);
+
+    // Lọc danh sách lô hàng theo Tab
+    const filteredBatches = batches.filter((b) => {
+        if (activeTab === 'RECEIVE') {
+            return (
+                b.currentStage === 'STAGE_HARVESTED' ||
+                b.currentStage === 'HARVESTED' ||
+                b.currentStage === 'DA_THU_HOACH'
+            );
+        }
+        return true;
+    });
+
 
     // Handlers
     const handleReceive = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedBatchId) return setMessage({ type: 'error', text: 'Vui lòng chọn Lô sản xuất.' });
-        setSubmitting(true);
+        setSubmittingOperation('receive', true); // Kích hoạt trạng thái tải toàn cục
         setMessage(null);
         try {
             await postHarvestService.receiveBatch(selectedBatchId, receiveForm);
@@ -111,14 +152,14 @@ export const PostHarvestProcessingPage: React.FC = () => {
         } catch (err: any) {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi gọi receiveBatch.' });
         } finally {
-            setSubmitting(false);
+            setSubmittingOperation('receive', false); // Tắt trạng thái tải toàn cục
         }
     };
 
     const handleProcess = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedBatchId) return setMessage({ type: 'error', text: 'Vui lòng chọn Lô sản xuất.' });
-        setSubmitting(true);
+        setSubmittingOperation('process', true);
         setMessage(null);
         try {
             const formData = new FormData();
@@ -134,14 +175,14 @@ export const PostHarvestProcessingPage: React.FC = () => {
         } catch (err: any) {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi gọi processBatch.' });
         } finally {
-            setSubmitting(false);
+            setSubmittingOperation('process', false);
         }
     };
 
     const handleSort = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedBatchId) return setMessage({ type: 'error', text: 'Vui lòng chọn Lô sản xuất.' });
-        setSubmitting(true);
+        setSubmittingOperation('sort', true);
         setMessage(null);
         try {
             if (sortMode === 'CLASSIFY_ONLY') {
@@ -160,13 +201,13 @@ export const PostHarvestProcessingPage: React.FC = () => {
         } catch (err: any) {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi phân loại/tách lô.' });
         } finally {
-            setSubmitting(false);
+            setSubmittingOperation('sort', false);
         }
     };
 
     const handleInspect = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubmitting(true);
+        setSubmittingOperation('inspect', true);
         setMessage(null);
         try {
             const formData = new FormData();
@@ -191,13 +232,13 @@ export const PostHarvestProcessingPage: React.FC = () => {
         } catch (err: any) {
             setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Lỗi khi kiểm định.' });
         } finally {
-            setSubmitting(false);
+            setSubmittingOperation('inspect', false);
         }
     };
 
     const handlePackage = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubmitting(true);
+        setSubmittingOperation('package', true);
         setMessage(null);
         try {
             const formData = new FormData();
@@ -217,9 +258,10 @@ export const PostHarvestProcessingPage: React.FC = () => {
         } catch (err: any) {
             setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Lỗi khi đóng gói.' });
         } finally {
-            setSubmitting(false);
+            setSubmittingOperation('package', false);
         }
     };
+
 
     // Danh sách các Tab Chức Năng Con (Phong cách Quản Lý Kho)
     const tabNavigation = [
@@ -268,13 +310,14 @@ export const PostHarvestProcessingPage: React.FC = () => {
                 <AppSelect
                     value={selectedBatchId}
                     onChange={(e) => setSelectedBatchId(e.target.value)}
-                    options={batches.map((b) => ({
+                    options={filteredBatches.map((b) => ({
                         value: b.id,
-                        label: `${b.batchCode} - ${b.productName || b.fruitTypeName} (Trạng thái: ${b.currentStage})`,
+                        label: `${b.batchCode} - ${b.productName || b.fruitTypeName} (Trạng thái: ${translateStage(b.currentStage)})`,
                     }))}
                     className="w-full md:w-2/3"
                 />
             </div>
+
 
             {/* SUB-TABS DẠNG QUẢN LÝ KHO */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2 overflow-x-auto gap-3">
@@ -317,13 +360,14 @@ export const PostHarvestProcessingPage: React.FC = () => {
                         <div className="pt-2">
                             <AppButton
                                 type="submit"
-                                isLoading={submitting}
+                                isLoading={submittingOperations['receive']}
                                 variant="green"
                                 leftIcon={<PackageCheck className="w-4 h-4" />}
                                 className="px-6 py-2.5 text-xs md:text-sm font-bold shadow-md shadow-green-700/20 hover:shadow-lg transition-all"
                             >
                                 Xác Nhận Tiếp Nhận Lô (receiveBatch)
                             </AppButton>
+
                         </div>
                     </form>
                 )}
@@ -349,13 +393,14 @@ export const PostHarvestProcessingPage: React.FC = () => {
                         <div className="pt-2">
                             <AppButton
                                 type="submit"
-                                isLoading={submitting}
+                                isLoading={submittingOperations['process']}
                                 variant="green"
                                 leftIcon={<Wrench className="w-4 h-4" />}
                                 className="px-6 py-2.5 text-xs md:text-sm font-bold shadow-md shadow-green-700/20 hover:shadow-lg transition-all"
                             >
                                 Hoàn Thành Sơ Chế Lô (processBatch)
                             </AppButton>
+
                         </div>
                     </form>
                 )}
@@ -443,7 +488,7 @@ export const PostHarvestProcessingPage: React.FC = () => {
                         <div className="pt-2">
                             <AppButton
                                 type="submit"
-                                isLoading={submitting}
+                                isLoading={submittingOperations['sort']}
                                 variant="green"
                                 leftIcon={<GitFork className="w-4 h-4" />}
                                 className="px-6 py-2.5 text-xs md:text-sm font-bold shadow-md shadow-green-700/20 hover:shadow-lg transition-all"
@@ -451,6 +496,7 @@ export const PostHarvestProcessingPage: React.FC = () => {
                                 {sortMode === 'CLASSIFY_ONLY' ? 'Xác Nhận Phân Loại (classifyOnlyBatch)' : 'Xác Nhận Tách Lô (splitBatch)'}
                             </AppButton>
                         </div>
+
                     </form>
                 )}
 
@@ -502,7 +548,7 @@ export const PostHarvestProcessingPage: React.FC = () => {
                         <div className="pt-2">
                             <AppButton
                                 type="submit"
-                                isLoading={submitting}
+                                isLoading={submittingOperations['inspect']}
                                 variant={inspectForm.result === 'PASSED' ? 'green' : 'red'}
                                 leftIcon={<FileCheck2 className="w-4 h-4" />}
                                 className={`px-6 py-2.5 text-xs md:text-sm font-bold shadow-md transition-all ${inspectForm.result === 'PASSED' ? 'shadow-green-700/20' : 'shadow-rose-700/20'
@@ -510,6 +556,7 @@ export const PostHarvestProcessingPage: React.FC = () => {
                             >
                                 Xác Nhận Kiểm Định ({inspectTarget === 'PARENT' ? 'inspectParent' : 'inspectSub'})
                             </AppButton>
+
                         </div>
                     </form>
                 )}
@@ -559,13 +606,14 @@ export const PostHarvestProcessingPage: React.FC = () => {
                         <div className="pt-2">
                             <AppButton
                                 type="submit"
-                                isLoading={submitting}
+                                isLoading={submittingOperations['package']}
                                 variant="green"
                                 leftIcon={<Box className="w-4 h-4" />}
                                 className="px-6 py-2.5 text-xs md:text-sm font-bold shadow-md shadow-green-700/20 hover:shadow-lg transition-all"
                             >
                                 Hoàn Thành Đóng Gói ({packageTarget === 'PARENT' ? 'packageParent' : 'packageSub'})
                             </AppButton>
+
                         </div>
                     </form>
                 )}

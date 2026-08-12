@@ -29,7 +29,7 @@ export function AppTable<T>({ columns, data, showSTT = true }: AppTableProps<T>)
                                     key={col.key}
                                     style={{ width: col.width }}
                                     className={clsx(
-                                        'px-4 py-3.5 font-bold',
+                                        'px-4 py-3.5 font-bold whitespace-nowrap',
                                         col.align === 'center' && 'text-center',
                                         col.align === 'right' && 'text-right'
                                     )}
@@ -52,6 +52,7 @@ export function AppTable<T>({ columns, data, showSTT = true }: AppTableProps<T>)
                                     return (
                                         <td
                                             key={col.key}
+                                            style={{ width: col.width }}
                                             className={clsx(
                                                 'px-4 py-3 font-medium',
                                                 col.align === 'center' && 'text-center',

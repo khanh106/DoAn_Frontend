@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { resolveIpfsUrl } from '../../services/ipfsService';
+import { translateStage } from '../../types';
+
 import {
     FileText,
     Search,
@@ -173,7 +176,8 @@ export const ProductionLogManagementPage: React.FC = () => {
                     {selectedBatchInfo && (
                         <div className="mt-3 text-xs text-slate-600 flex flex-wrap gap-4 pt-2 border-t border-slate-100">
                             <span><strong>Mã Lô:</strong> {selectedBatchInfo.batchCode}</span>
-                            <span><strong>Trạng thái:</strong> {selectedBatchInfo.currentStage}</span>
+                            <span><strong>Trạng thái:</strong> {translateStage(selectedBatchInfo.currentStage)}</span>
+
                             <span><strong>Sản lượng dự kiến:</strong> {selectedBatchInfo.expectedQuantity} kg</span>
                             <span><strong>Đại diện hộ trồng:</strong> {selectedBatchInfo.representativeWorkerName || 'N/A'}</span>
                         </div>
@@ -320,10 +324,11 @@ export const ProductionLogManagementPage: React.FC = () => {
                                                     className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 group cursor-pointer shadow-sm hover:ring-2 hover:ring-emerald-500 transition-all"
                                                 >
                                                     <img
-                                                        src={url}
+                                                        src={resolveIpfsUrl(url)}
                                                         alt={`Evidence ${idx + 1}`}
                                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                                     />
+
                                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                                                         <Eye className="w-5 h-5" />
                                                     </div>
@@ -338,7 +343,7 @@ export const ProductionLogManagementPage: React.FC = () => {
                                     <div className="pt-2 flex items-center gap-2 text-xs text-slate-500 font-mono border-t border-slate-50">
                                         <span className="text-slate-400">Xác thực Metadata IPFS:</span>
                                         <a
-                                            href={log.metadataURI}
+                                            href={resolveIpfsUrl(log.metadataURI)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-emerald-700 hover:underline flex items-center gap-1 truncate max-w-xs"
@@ -362,10 +367,11 @@ export const ProductionLogManagementPage: React.FC = () => {
                 >
                     <div className="relative max-w-4xl max-h-[90vh]">
                         <img
-                            src={previewImage}
+                            src={resolveIpfsUrl(previewImage)}
                             alt="Full Preview"
                             className="max-w-full max-h-[90vh] rounded-lg shadow-2xl border border-white/20 object-contain"
                         />
+
                         <button
                             onClick={() => setPreviewImage(null)}
                             className="absolute -top-4 -right-4 p-2 bg-slate-900 text-white rounded-full hover:bg-slate-800 border border-white/20"

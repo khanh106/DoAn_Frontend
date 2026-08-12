@@ -4,11 +4,16 @@ import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
 import { AppModal } from '../../components/ui/AppModal';
 import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
+
+
 import {
     farmerService,
     type AssignedBatch,
     type CultivationLog,
 } from '../../services/farmerService';
+import { resolveIpfsUrl } from '../../services/ipfsService';
+
 import {
     FileText,
     Plus,
@@ -67,7 +72,8 @@ export const FarmerLogsPage: React.FC = () => {
     const [formDescription, setFormDescription] = useState<string>('');
     const [formFiles, setFormFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-    const [submitting, setSubmitting] = useState<boolean>(false);
+    const submittingOperations = useUIStore((state) => state.submittingOperations);
+    const setSubmittingOperation = useUIStore((state) => state.setSubmittingOperation);
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
@@ -80,9 +86,14 @@ export const FarmerLogsPage: React.FC = () => {
         setError(null);
         try {
             const data = await farmerService.getAssignedBatches();
-            setBatches(data);
-            if (data.length > 0 && !formBatchId) {
-                setFormBatchId(data[0].batchId);
+            // Lọc chỉ lấy các lô nông dân đã tiếp nhận (workerStatus === 'ACCEPTED')
+            const acceptedBatches = (data || []).filter((b) => b.workerStatus === 'ACCEPTED');
+            setBatches(acceptedBatches);
+            if (acceptedBatches.length > 0 && !formBatchId) {
+                const activeBatches = acceptedBatches.filter((b) => b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING');
+                if (activeBatches.length > 0) {
+                    setFormBatchId(activeBatches[0].batchId);
+                }
             }
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
@@ -91,6 +102,7 @@ export const FarmerLogsPage: React.FC = () => {
             setLoading(false);
         }
     }, [formBatchId]);
+
 
     // 2. Tải nhật ký canh tác của tất cả các lô hoặc lô được chọn
     const fetchLogs = useCallback(async () => {
@@ -153,6 +165,12 @@ export const FarmerLogsPage: React.FC = () => {
 
     // Reset Form Modal
     const resetForm = () => {
+        const activeBatches = batches.filter((b) => b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING');
+        if (activeBatches.length > 0) {
+            setFormBatchId(activeBatches[0].batchId);
+        } else {
+            setFormBatchId('');
+        }
         setFormActivityType('Bón phân');
         setFormLogDate(new Date().toISOString().slice(0, 16));
         setFormDescription('');
@@ -179,7 +197,7 @@ export const FarmerLogsPage: React.FC = () => {
             return;
         }
 
-        setSubmitting(true);
+        setSubmittingOperation('createLog', true);
         try {
             const formData = new FormData();
             formData.append('ActivityType', formActivityType);
@@ -201,7 +219,7 @@ export const FarmerLogsPage: React.FC = () => {
             const errorObj = err as AxiosError<{ message?: string }>;
             setFormError(errorObj.response?.data?.message || 'Không thể ghi nhật ký. Vui lòng thử lại!');
         } finally {
-            setSubmitting(false);
+            setSubmittingOperation('createLog', false);
         }
     };
 
@@ -273,7 +291,7 @@ export const FarmerLogsPage: React.FC = () => {
                             }}
                             className="shadow-lg shadow-orange-500/30"
                         >
-                            + Ghi nhật ký mới
+                            Ghi nhật ký mới
                         </AppButton>
                     </div>
                 </div>
@@ -365,8 +383,8 @@ export const FarmerLogsPage: React.FC = () => {
                                 key={act.value}
                                 onClick={() => setSelectedActivityFilter(act.value)}
                                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${isActive
-                                        ? 'bg-emerald-700 text-white shadow-md shadow-emerald-700/20'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-700/20'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                             >
                                 <Icon className="w-3.5 h-3.5" />
@@ -475,7 +493,7 @@ export const FarmerLogsPage: React.FC = () => {
                                                     className="group relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer shadow-xs hover:shadow-md transition-all"
                                                 >
                                                     <img
-                                                        src={imgUrl}
+                                                        src={resolveIpfsUrl(imgUrl)}
                                                         alt={`Thực địa ${idx + 1}`}
                                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                                         onError={(e) => {
@@ -483,6 +501,7 @@ export const FarmerLogsPage: React.FC = () => {
                                                                 'https://images.unsplash.com/photo-1595974482597-4b8da8879bc5?w=500';
                                                         }}
                                                     />
+
                                                     <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                                                         <Eye className="w-5 h-5" />
                                                     </div>
@@ -526,11 +545,13 @@ export const FarmerLogsPage: React.FC = () => {
                             onChange={(e) => setFormBatchId(e.target.value)}
                             className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                         >
-                            {batches.map((b) => (
-                                <option key={b.batchId} value={b.batchId}>
-                                    Mã lô: {b.batchCode} - {b.fruitTypeName} ({b.productName})
-                                </option>
-                            ))}
+                            {batches
+                                .filter((b) => b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING')
+                                .map((b) => (
+                                    <option key={b.batchId} value={b.batchId}>
+                                        Mã lô: {b.batchCode} - {b.fruitTypeName} ({b.productName})
+                                    </option>
+                                ))}
                         </select>
                     </div>
 
@@ -545,14 +566,14 @@ export const FarmerLogsPage: React.FC = () => {
                                 onChange={(e) => setFormActivityType(e.target.value)}
                                 className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                             >
-                                <option value="Bón phân">🌱 Bón phân</option>
-                                <option value="Tưới nước">💧 Tưới nước</option>
-                                <option value="Phun thuốc">🛡️ Phun thuốc bảo vệ</option>
-                                <option value="Cắt tỉa">✂️ Cắt tỉa / Tỉa cành</option>
-                                <option value="Kiểm tra sâu bệnh">🔍 Kiểm tra sâu bệnh</option>
-                                <option value="Làm cỏ">🌾 Làm cỏ / Vệ sinh vườn</option>
-                                <option value="Thu hoạch">✨ Thu hoạch</option>
-                                <option value="Khác">📝 Khác</option>
+                                <option value="Bón phân">Bón phân</option>
+                                <option value="Tưới nước">Tưới nước</option>
+                                <option value="Phun thuốc">Phun thuốc bảo vệ</option>
+                                <option value="Cắt tỉa">Cắt tỉa / Tỉa cành</option>
+                                <option value="Kiểm tra sâu bệnh">Kiểm tra sâu bệnh</option>
+                                <option value="Làm cỏ">Làm cỏ / Vệ sinh vườn</option>
+
+                                <option value="Khác">Khác</option>
                             </select>
                         </div>
 
@@ -628,7 +649,7 @@ export const FarmerLogsPage: React.FC = () => {
                         <AppButton type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                             Hủy bỏ
                         </AppButton>
-                        <AppButton type="submit" variant="green" isLoading={submitting} leftIcon={<Plus className="w-4 h-4" />}>
+                        <AppButton type="submit" variant="green" isLoading={submittingOperations['createLog']} leftIcon={<Plus className="w-4 h-4" />}>
                             Xác nhận ghi nhật ký
                         </AppButton>
                     </div>
@@ -648,7 +669,8 @@ export const FarmerLogsPage: React.FC = () => {
                         >
                             <X className="w-5 h-5" />
                         </button>
-                        <img src={lightboxImage} alt="Thực địa lớn" className="max-w-full max-h-[85vh] object-contain mx-auto" />
+                        <img src={resolveIpfsUrl(lightboxImage)} alt="Thực địa lớn" className="max-w-full max-h-[85vh] object-contain mx-auto" />
+
                     </div>
                 </div>
             )}

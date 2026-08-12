@@ -39,13 +39,16 @@ export const FarmerProgressPage: React.FC = () => {
         setLoading(true);
         try {
             const data = await farmerService.getAssignedBatches();
-            setBatches(data || []);
+            // Lọc chỉ lấy các lô nông dân đã tiếp nhận (workerStatus === 'ACCEPTED')
+            const acceptedBatches = (data || []).filter((b) => b.workerStatus === 'ACCEPTED');
+            setBatches(acceptedBatches);
         } catch (error) {
             console.error('Lỗi khi tải danh sách lô tiến độ:', error);
         } finally {
             setLoading(false);
         }
     }, []);
+
 
     useEffect(() => {
         void fetchBatches();
@@ -186,15 +189,16 @@ export const FarmerProgressPage: React.FC = () => {
                         variant="outline"
                         onClick={fetchBatches}
                         isLoading={loading}
-                        className="flex items-center gap-2"
+                        leftIcon={<RefreshCw className="w-4 h-4" />}
                     >
-                        <RefreshCw className="w-4 h-4" /> Làm mới
+                        Làm mới
                     </AppButton>
                     <AppButton
                         onClick={() => navigate('/farmer/logs')}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 flex items-center gap-2"
+                        leftIcon={<FileText className="w-4 h-4" />}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
                     >
-                        <FileText className="w-4 h-4" /> + Ghi Nhật Ký
+                        Ghi Nhật Ký
                     </AppButton>
                 </div>
             </div>

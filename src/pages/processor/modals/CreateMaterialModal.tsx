@@ -14,13 +14,13 @@ export const CreateMaterialModal: React.FC<CreateMaterialModalProps> = ({
     onClose,
     onSubmit,
 }) => {
-    const [itemType, setItemType] = useState<string>('PRODUCT');
+    const [itemType, setItemType] = useState<string>('PESTICIDE');
     const [code, setCode] = useState<string>('');
     const [name, setName] = useState<string>('');
     const [unit, setUnit] = useState<string>('kg');
     const [price, setPrice] = useState<number | ''>('');
     const [dosagePerHa, setDosagePerHa] = useState<number | ''>('');
-    const [concentration, setConcentration] = useState<string>('');
+    const [concentration, setConcentration] = useState<number | ''>('');
     const [supplier, setSupplier] = useState<string>('');
     const [npkRatio, setNpkRatio] = useState<string>('');
     const [note, setNote] = useState<string>('');
@@ -44,11 +44,12 @@ export const CreateMaterialModal: React.FC<CreateMaterialModalProps> = ({
                 unit: unit.trim(),
                 price: price === '' ? 0 : Number(price),
                 dosagePerHa: dosagePerHa === '' ? undefined : Number(dosagePerHa),
-                concentration: concentration ? concentration : undefined,
+                concentration: concentration === '' ? undefined : Number(concentration),
                 supplier: supplier.trim() || undefined,
                 npkRatio: npkRatio.trim() || undefined,
                 note: note.trim() || undefined,
             });
+
             onClose();
         } catch (error) {
             console.error(error);
@@ -79,12 +80,12 @@ export const CreateMaterialModal: React.FC<CreateMaterialModalProps> = ({
                                 onChange={(e) => setItemType(e.target.value)}
                                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 font-medium"
                             >
-                                <option value="PRODUCT">Sản phẩm</option>
                                 <option value="PESTICIDE">Nông dược</option>
                                 <option value="FERTILIZER">Phân bón</option>
                                 <option value="MATERIAL">Nguyên vật liệu</option>
                                 <option value="EQUIPMENT">Thiết bị</option>
                             </select>
+
                         </div>
 
                         <div>
@@ -177,15 +178,17 @@ export const CreateMaterialModal: React.FC<CreateMaterialModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="block font-semibold text-slate-700 mb-1">Nồng độ / Hàm lượng</label>
+                                <label className="block font-semibold text-slate-700 mb-1">Nồng độ / Hàm lượng (%)</label>
                                 <input
-                                    type="text"
+                                    type="number"
+                                    step="any"
                                     value={concentration}
-                                    onChange={(e) => setConcentration(e.target.value)}
-                                    placeholder="VD: 20EC, 50WP..."
+                                    onChange={(e) => setConcentration(e.target.value === '' ? '' : Number(e.target.value))}
+                                    placeholder="VD: 12.5, 20..."
                                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500"
                                 />
                             </div>
+
                         </div>
                     )}
 

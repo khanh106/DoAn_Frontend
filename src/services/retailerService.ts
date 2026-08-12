@@ -259,7 +259,15 @@ export const retailerService = {
     },
 
     /**
-     * Sinh mã QR truy xuất nguồn gốc (Processor API)
+     * Lấy danh sách QR code đã được HTX tạo sẵn cho lô hàng của vận đơn
+     */
+    getQrCodesForShipment: async (shipmentId: string): Promise<any[]> => {
+        const response = await apiClient.get(`/v1/retailer/shipments/${shipmentId}/qrcodes`);
+        return response.data;
+    },
+
+    /**
+     * Sinh mã QR truy xuất nguồn gốc (Processor API) - Không còn sử dụng trên trang siêu thị
      */
     generateQrCode: async (targetType: string, targetId: string): Promise<any> => {
         const response = await apiClient.post('/v1/processor/qrcodes/generate', {
@@ -269,5 +277,3 @@ export const retailerService = {
         return response.data;
     }
 };
-
-

@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { resolveIpfsUrl } from '../../services/ipfsService';
+import { translateStage } from '../../types';
+
 import {
     Layers,
     Plus,
@@ -50,6 +53,8 @@ export const BatchManagementPage: React.FC = () => {
     // State Modal
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState<boolean>(false);
+    const [successMessage, setSuccessMessage] = useState<string>('');
     const [selectedBatch, setSelectedBatch] = useState<BatchDto | null>(null);
     const [submitting, setSubmitting] = useState<boolean>(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -181,24 +186,28 @@ export const BatchManagementPage: React.FC = () => {
             };
 
             const created = await processorService.createBatch(reqData);
-            setBatches((prev) => [created, ...prev]);
-            setFormSuccess(`🎉 Tạo Lô '${created.batchCode}' thành công! Đã đẩy dữ liệu IPFS & Ký giao dịch Smart Contract bằng ví Hợp tác xã.`);
+            // Đóng Modal Form tạo lô
+            setIsCreateModalOpen(false);
 
-            // Reset form sau 1.5s & đóng modal
-            setTimeout(() => {
-                setIsCreateModalOpen(false);
-                setFormSuccess(null);
-                setFormData({
-                    batchCode: `BATCH-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
-                    fruitTypeId: '',
-                    productId: '',
-                    farmAreaId: '',
-                    plantingDate: new Date().toISOString().split('T')[0],
-                    expectedQuantity: 1000,
-                    assignedWorkerIds: [],
-                    representativeWorkerId: '',
-                });
-            }, 1500);
+            // Cài đặt thông báo & Mở Modal thông báo thành công
+            setSuccessMessage(`Tạo lô sản xuất '${created.batchCode}' thành công! Thông tin đã được đẩy lên IPFS và ghi nhận giao dịch thành công trên Blockchain.`);
+            setIsSuccessModalOpen(true);
+
+            // Reset form
+            setFormData({
+                batchCode: `BATCH-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+                fruitTypeId: '',
+                productId: '',
+                farmAreaId: '',
+                plantingDate: new Date().toISOString().split('T')[0],
+                expectedQuantity: 1000,
+                assignedWorkerIds: [],
+                representativeWorkerId: '',
+            });
+
+            // Tải lại danh sách từ DB để hiển thị lô hàng đã tạo thành công
+            await fetchData();
+
 
         } catch (err: any) {
             console.error('Lỗi tạo lô:', err);
@@ -211,31 +220,38 @@ export const BatchManagementPage: React.FC = () => {
 
     // Helper map badge giai đoạn
     const getStageBadge = (stage: string) => {
+        const translatedLabel = translateStage(stage);
         switch (stage) {
-            case 'STAGE_CREATED':
-                return <AppBadge status="INFO" label="Mới khởi tạo" />;
+            case 'STAGE_PLANTING':
             case 'STAGE_ACCEPTED':
-                return <AppBadge status="ACTIVE" label="Đang canh tác" />;
+            case 'STAGE_CREATED':
+                return <AppBadge status="ACTIVE" label={translatedLabel} />;
             case 'STAGE_HARVESTED':
-                return <AppBadge status="WARNING" label="Đã thu hoạch" />;
+                return <AppBadge status="WARNING" label={translatedLabel} />;
             case 'STAGE_RECEIVED':
-                return <AppBadge status="PURPLE" label="HTX Tiếp nhận" />;
+                return <AppBadge status="PURPLE" label={translatedLabel} />;
             case 'STAGE_PROCESSED':
-                return <AppBadge status="BLUE" label="Đã sơ chế" />;
+                return <AppBadge status="BLUE" label={translatedLabel} />;
             case 'STAGE_SORTED':
-                return <AppBadge status="CYAN" label="Đã phân loại" />;
+                return <AppBadge status="CYAN" label={translatedLabel} />;
             case 'INSPECTION_PASSED':
-                return <AppBadge status="SUCCESS" label="Đạt kiểm định" />;
+                return <AppBadge status="SUCCESS" label={translatedLabel} />;
             case 'INSPECTION_FAILED':
-                return <AppBadge status="DANGER" label="KĐ Thất bại" />;
+                return <AppBadge status="DANGER" label={translatedLabel} />;
+            case 'PACKAGED':
             case 'STAGE_PACKAGED':
-                return <AppBadge status="SUCCESS" label="Đã đóng gói" />;
+                return <AppBadge status="SUCCESS" label={translatedLabel} />;
             case 'STAGE_SHIPPING':
-                return <AppBadge status="INFO" label="Đang vận chuyển" />;
+                return <AppBadge status="INFO" label={translatedLabel} />;
+            case 'RECEIVED_AT_RETAILER':
+                return <AppBadge status="INFO" label={translatedLabel} />;
+            case 'READY_FOR_SALE':
+                return <AppBadge status="SUCCESS" label={translatedLabel} />;
             default:
-                return <AppBadge status="NEUTRAL" label={stage || 'Mới tạo'} />;
+                return <AppBadge status="NEUTRAL" label={translatedLabel} />;
         }
     };
+
 
     // Filtered data
     const filteredBatches = batches.filter((b) => {
@@ -651,7 +667,7 @@ export const BatchManagementPage: React.FC = () => {
                             Hủy bỏ
                         </AppButton>
                         <AppButton variant="green" type="submit" disabled={submitting} className="min-w-[120px]">
-                            {submitting ? 'Đang gọi SC...' : 'Tạo Lô On-Chain'}
+                            {submitting ? 'Đang tạo lô hàng mới' : 'Tạo Lô On-Chain'}
                         </AppButton>
                     </div>
 
@@ -692,7 +708,11 @@ export const BatchManagementPage: React.FC = () => {
                                 <span>Thông Tin Blockchain Smart Contract</span>
                             </h5>
                             <div className="font-mono text-[11px] space-y-1">
-                                <p><span className="text-emerald-700">Metadata IPFS URI:</span> {selectedBatch.metadataURI || 'ipfs://...'}</p>
+                                <p><span className="text-emerald-700">Metadata IPFS URI:</span>{' '}
+                                    {selectedBatch.metadataURI ? (
+                                        <a href={resolveIpfsUrl(selectedBatch.metadataURI)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{selectedBatch.metadataURI}</a>
+                                    ) : 'ipfs://...'}
+                                </p>
                                 <p><span className="text-emerald-700">Data Hash (Sha256):</span> {selectedBatch.dataHash || '0x...'}</p>
                                 {selectedBatch.blockchainBatchId && (
                                     <p><span className="text-emerald-700">Blockchain Batch ID:</span> {selectedBatch.blockchainBatchId}</p>
@@ -736,6 +756,28 @@ export const BatchManagementPage: React.FC = () => {
                     </div>
                 </AppModal>
             )}
+
+            {/* MODAL THÔNG BÁO TẠO LÔ THÀNH CÔNG */}
+            <AppModal
+                isOpen={isSuccessModalOpen}
+                onClose={() => setIsSuccessModalOpen(false)}
+                title="Tạo Lô Sản Xuất Thành Công"
+            >
+                <div className="text-center py-6 space-y-4">
+                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 animate-bounce">
+                        <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900">Giao dịch Blockchain thành công</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed whitespace-pre-line">
+                        {successMessage}
+                    </p>
+                    <div className="pt-4 flex justify-center">
+                        <AppButton variant="green" onClick={() => setIsSuccessModalOpen(false)} className="px-6 py-2">
+                            Xác nhận
+                        </AppButton>
+                    </div>
+                </div>
+            </AppModal>
         </div>
     );
 };

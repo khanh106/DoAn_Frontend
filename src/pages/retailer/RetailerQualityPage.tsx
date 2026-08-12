@@ -636,22 +636,20 @@ export const RetailerQualityPage: React.FC = () => {
                         <div className="flex border-b border-slate-200">
                             <button
                                 onClick={() => setActiveQaTab('SUPERMARKET_CHECK')}
-                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                                    activeQaTab === 'SUPERMARKET_CHECK'
+                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeQaTab === 'SUPERMARKET_CHECK'
                                         ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
                                         : 'border-transparent text-slate-500 hover:text-slate-800'
-                                }`}
+                                    }`}
                             >
                                 <ShieldCheck className="w-4 h-4" />
                                 1. Đo Đạc & Cảm Quan Tại Siêu Thị
                             </button>
                             <button
                                 onClick={() => setActiveQaTab('ORIGIN_CERT')}
-                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                                    activeQaTab === 'ORIGIN_CERT'
+                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeQaTab === 'ORIGIN_CERT'
                                         ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
                                         : 'border-transparent text-slate-500 hover:text-slate-800'
-                                }`}
+                                    }`}
                             >
                                 <Award className="w-4 h-4" />
                                 2. Chứng Nhận VietGAP Gốc (Processor)
@@ -706,11 +704,10 @@ export const RetailerQualityPage: React.FC = () => {
                                                     className="cursor-pointer focus:outline-hidden"
                                                 >
                                                     <Star
-                                                        className={`w-5 h-5 ${
-                                                            star <= qaForm.freshnessRating
+                                                        className={`w-5 h-5 ${star <= qaForm.freshnessRating
                                                                 ? 'text-amber-400 fill-amber-400'
                                                                 : 'text-slate-300'
-                                                        }`}
+                                                            }`}
                                                     />
                                                 </button>
                                             ))}
@@ -794,11 +791,10 @@ export const RetailerQualityPage: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'PASSED' })}
-                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                                                qaForm.qaResult === 'PASSED'
+                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'PASSED'
                                                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
                                                     : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
-                                            }`}
+                                                }`}
                                         >
                                             <CheckCircle2 className="w-5 h-5" />
                                             ĐẠT CHUẨN (PASSED)
@@ -807,11 +803,10 @@ export const RetailerQualityPage: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'QUARANTINE' })}
-                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                                                qaForm.qaResult === 'QUARANTINE'
+                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'QUARANTINE'
                                                     ? 'bg-amber-500 text-white border-amber-500 shadow-md'
                                                     : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
-                                            }`}
+                                                }`}
                                         >
                                             <AlertTriangle className="w-5 h-5" />
                                             TẠM GIỮ / KIỂM TRA LẠI
@@ -820,11 +815,10 @@ export const RetailerQualityPage: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'REJECTED' })}
-                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                                                qaForm.qaResult === 'REJECTED'
+                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'REJECTED'
                                                     ? 'bg-rose-600 text-white border-rose-600 shadow-md'
                                                     : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
-                                            }`}
+                                                }`}
                                         >
                                             <XCircle className="w-5 h-5" />
                                             KHÔNG ĐẠT (REJECT)

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { resolveIpfsUrl } from '../../services/ipfsService';
 import {
     Truck,
     Store,
-    ShieldCheck,
     QrCode,
     Plus,
     Search,
@@ -27,7 +27,7 @@ import {
 } from '../../services/shippingAndQrService';
 import { processorService, type BatchDto } from '../../services/processorService';
 import { CreateShipmentModal } from './modals/CreateShipmentModal';
-import { CreateInspectionModal } from './modals/CreateInspectionModal';
+
 import { GenerateQRCodeModal } from './modals/GenerateQRCodeModal';
 import { AxiosError } from 'axios';
 
@@ -48,7 +48,7 @@ export const QRCodeAndShippingPage: React.FC = () => {
 
     // Modals Control
     const [showShipmentModal, setShowShipmentModal] = useState<boolean>(false);
-    const [showInspectionModal, setShowInspectionModal] = useState<boolean>(false);
+
     const [showQrModal, setShowQrModal] = useState<boolean>(false);
     const [selectedBatchId, setSelectedBatchId] = useState<string>('');
 
@@ -107,12 +107,20 @@ export const QRCodeAndShippingPage: React.FC = () => {
                 }
             } else if (activeTab === 'QRCODE') {
                 if (selectedBatchId) {
-                    const data = await shippingAndQrService.getQRCodesByTarget('BATCH', selectedBatchId);
-                    setQrCodes(data);
+                    // Gọi song song để lấy tất cả các loại mã QR đã phát hành gắn với lô hàng này
+                    const [batchQrs, subBatchQrs, boxQrs, commercialQrs] = await Promise.all([
+                        shippingAndQrService.getQRCodesByTarget('BATCH', selectedBatchId).catch(() => []),
+                        shippingAndQrService.getQRCodesByTarget('SUBBATCH', selectedBatchId).catch(() => []),
+                        shippingAndQrService.getQRCodesByTarget('BOX', selectedBatchId).catch(() => []),
+                        shippingAndQrService.getQRCodesByTarget('COMMERCIAL', selectedBatchId).catch(() => []),
+                    ]);
+                    // Gộp toàn bộ kết quả hiển thị lên bảng
+                    setQrCodes([...batchQrs, ...subBatchQrs, ...boxQrs, ...commercialQrs]);
                 } else {
                     setQrCodes([]);
                 }
             }
+
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi khi tải dữ liệu tab:', errorObj);
@@ -353,7 +361,7 @@ export const QRCodeAndShippingPage: React.FC = () => {
             render: (item) => (
                 item.fileURI ? (
                     <a
-                        href={item.fileURI}
+                        href={resolveIpfsUrl(item.fileURI)}
                         target="_blank"
                         rel="noreferrer"
                         className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-xs inline-flex items-center gap-1 transition-colors"
@@ -377,6 +385,20 @@ export const QRCodeAndShippingPage: React.FC = () => {
                 </span>
             ),
         },
+        // --- BẮT ĐẦU PHẦN THÊM MỚI ---
+        {
+            header: 'Mã lô hàng',
+            key: 'targetId',
+            render: (item) => {
+                const batch = batches.find((b) => b.id === item.targetId);
+                return (
+                    <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs border border-indigo-100">
+                        {batch ? batch.batchCode : 'N/A'}
+                    </span>
+                );
+            },
+        },
+        // --- KẾT THÚC PHẦN THÊM MỚI ---
         {
             header: 'Giá trị QR / URL truy xuất',
             key: 'qrValue',
@@ -417,6 +439,7 @@ export const QRCodeAndShippingPage: React.FC = () => {
         },
     ];
 
+
     const tabLabels: { key: QRCodeShippingTab; label: string }[] = [
         { key: 'SHIPMENT', label: 'Vận chuyển' },
         { key: 'RETAILER', label: 'Điểm bán' },
@@ -440,14 +463,6 @@ export const QRCodeAndShippingPage: React.FC = () => {
                     >
                         <Truck className="w-4 h-4" />
                         <span>Tạo Vận Đơn</span>
-                    </button>
-
-                    <button
-                        onClick={() => setShowInspectionModal(true)}
-                        className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-                    >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Hồ Sơ Kiểm Định</span>
                     </button>
 
                     <button
@@ -556,6 +571,7 @@ export const QRCodeAndShippingPage: React.FC = () => {
             {showShipmentModal && (
                 <CreateShipmentModal
                     batchId={selectedBatchId}
+                    batches={batches} // <--- THÊM DÒNG NÀY
                     onClose={() => setShowShipmentModal(false)}
                     onSuccess={() => {
                         setShowShipmentModal(false);
@@ -564,16 +580,8 @@ export const QRCodeAndShippingPage: React.FC = () => {
                 />
             )}
 
-            {showInspectionModal && (
-                <CreateInspectionModal
-                    batchId={selectedBatchId}
-                    onClose={() => setShowInspectionModal(false)}
-                    onSuccess={() => {
-                        setShowInspectionModal(false);
-                        void loadTabData();
-                    }}
-                />
-            )}
+
+
 
             {showQrModal && (
                 <GenerateQRCodeModal

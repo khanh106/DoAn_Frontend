@@ -51,8 +51,10 @@ export const FarmerGuidesPage: React.FC = () => {
 
     // State lưu dữ liệu từ API Backend
     const [processes, setProcesses] = useState<FarmerProductionProcess[]>([]);
+    const [cooperatives, setCooperatives] = useState<any[]>([]); // Thêm state lưu HTX liên kết thực tế
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+
 
     // State lọc & chọn quy trình
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -63,11 +65,12 @@ export const FarmerGuidesPage: React.FC = () => {
     // Modal xem bản in tóm tắt
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState<boolean>(false);
 
-    // Call API Backend lấy quy trình từ HTX đã liên kết
+    // Call API Backend lấy quy trình và HTX đã liên kết
     const fetchGuides = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
+            // 1. Tải danh sách quy trình
             const data = await farmerService.getProcessGuides();
             setProcesses(data || []);
             if (data && data.length > 0) {
@@ -75,34 +78,56 @@ export const FarmerGuidesPage: React.FC = () => {
             } else {
                 setSelectedProcess(null);
             }
+
+            // 2. Tải danh sách HTX đã liên kết thực tế (Status == ACCEPTED)
+            const inviteData = await farmerService.getInvitations('ACCEPTED');
+            setCooperatives(inviteData || []);
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi khi tải hướng dẫn quy trình:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể kết nối Backend API lấy hướng dẫn quy trình.');
+            setError(errorObj.response?.data?.message || 'Không thể kết nối Backend API.');
         } finally {
             setLoading(false);
         }
     }, []);
 
+
     useEffect(() => {
         void fetchGuides();
     }, [fetchGuides]);
 
-    // Danh sách các Hợp tác xã duy nhất đã liên kết
+    // Danh sách các Hợp tác xã duy nhất đã liên kết thực tế
     const linkedCooperatives = useMemo(() => {
         const coopMap = new Map<string, { id: string; name: string; phone?: string; email?: string }>();
-        processes.forEach((p) => {
-            if (p.processorId && !coopMap.has(p.processorId)) {
-                coopMap.set(p.processorId, {
-                    id: p.processorId,
-                    name: p.processorName || 'Hợp tác xã',
-                    phone: p.processorPhone,
-                    email: p.processorEmail
+
+        // 1. Nạp từ danh sách HTX liên kết thực tế lấy từ API Invitations (status = ACCEPTED)
+        cooperatives.forEach((c) => {
+            if (c.processorId && !coopMap.has(c.processorId)) {
+                coopMap.set(c.processorId, {
+                    id: c.processorId,
+                    name: c.processorName || 'Hợp tác xã',
+                    phone: undefined,
+                    email: undefined
                 });
             }
         });
+
+        // 2. Điền bổ sung thêm thông tin liên hệ từ danh sách quy trình nếu có
+        processes.forEach((p) => {
+            if (p.processorId) {
+                const existing = coopMap.get(p.processorId);
+                coopMap.set(p.processorId, {
+                    id: p.processorId,
+                    name: p.processorName || existing?.name || 'Hợp tác xã',
+                    phone: p.processorPhone || existing?.phone,
+                    email: p.processorEmail || existing?.email
+                });
+            }
+        });
+
         return Array.from(coopMap.values());
-    }, [processes]);
+    }, [cooperatives, processes]);
+
 
     // Thống kê nhanh KPI
     const stats = useMemo(() => {
@@ -160,15 +185,16 @@ export const FarmerGuidesPage: React.FC = () => {
                         variant="outline"
                         onClick={fetchGuides}
                         isLoading={loading}
-                        className="flex items-center gap-2"
+                        leftIcon={<RefreshCw className="w-4 h-4" />}
                     >
-                        <RefreshCw className="w-4 h-4" /> Làm mới
+                        Làm mới
                     </AppButton>
                     <AppButton
                         onClick={() => navigate('/farmer/logs')}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 flex items-center gap-2"
+                        leftIcon={<FileText className="w-4 h-4" />}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
                     >
-                        <FileText className="w-4 h-4" /> + Ghi Nhật Ký
+                        Ghi Nhật Ký
                     </AppButton>
                 </div>
             </div>
@@ -211,23 +237,23 @@ export const FarmerGuidesPage: React.FC = () => {
 
             {/* Thông báo danh sách HTX Đã Liên Kết */}
             {linkedCooperatives.length > 0 && (
-                <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-emerald-50 text-slate-900 p-4 rounded-2xl border border-emerald-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-emerald-600 rounded-xl">
-                            <Building2 className="w-5 h-5 text-white" />
+                        <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl border border-emerald-200">
+                            <Building2 className="w-5 h-5" />
                         </div>
                         <div>
-                            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
                                 Hợp tác xã đang cung cấp quy trình cho bạn:
                             </h4>
                             <div className="flex flex-wrap items-center gap-3 mt-1">
                                 {linkedCooperatives.map((c) => (
-                                    <div key={c.id} className="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-xl text-xs font-bold border border-slate-700">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                    <div key={c.id} className="flex items-center gap-2 bg-white px-3 py-1 rounded-xl text-xs font-bold border border-slate-200 text-slate-800 shadow-2xs">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                         <span>{c.name}</span>
                                         {c.phone && (
-                                            <span className="text-slate-400 font-normal text-[11px] flex items-center gap-1 border-l border-slate-700 pl-2">
-                                                <Phone className="w-3 h-3" /> {c.phone}
+                                            <span className="text-slate-500 font-normal text-[11px] flex items-center gap-1 border-l border-slate-200 pl-2">
+                                                <Phone className="w-3 h-3 text-slate-400" /> {c.phone}
                                             </span>
                                         )}
                                     </div>
@@ -237,6 +263,7 @@ export const FarmerGuidesPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
 
             {/* Alert Lỗi nếu có */}
             {error && (

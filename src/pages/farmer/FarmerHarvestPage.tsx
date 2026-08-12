@@ -1,4 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { resolveIpfsUrl } from '../../services/ipfsService';
+import { translateStage } from '../../types';
+import { AppButton } from '../../components/ui/AppButton';
+import { useUIStore } from '../../stores/uiStore';
+
 import {
     CheckCircle,
     Calendar,
@@ -37,7 +42,9 @@ export const FarmerHarvestPage: React.FC = () => {
     const [notes, setNotes] = useState<string>('');
 
     // State xử lý Ký Blockchain
-    const [submitting, setSubmitting] = useState<boolean>(false);
+    const submittingOperations = useUIStore((state) => state.submittingOperations);
+    const setSubmittingOperation = useUIStore((state) => state.setSubmittingOperation);
+
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [harvestResult, setHarvestResult] = useState<HarvestResponse | null>(null);
 
@@ -49,13 +56,16 @@ export const FarmerHarvestPage: React.FC = () => {
         try {
             setLoading(true);
             const data = await farmerService.getAssignedBatches();
-            setBatches(data || []);
+            // Lọc chỉ lấy các lô nông dân đã tiếp nhận (workerStatus === 'ACCEPTED')
+            const acceptedBatches = (data || []).filter((b) => b.workerStatus === 'ACCEPTED');
+            setBatches(acceptedBatches);
         } catch (error: any) {
             console.error('Lỗi khi tải danh sách lô phân công:', error);
         } finally {
             setLoading(false);
         }
     };
+
 
     const handleOpenHarvestModal = (batch: AssignedBatch) => {
         setSelectedBatch(batch);
@@ -67,9 +77,10 @@ export const FarmerHarvestPage: React.FC = () => {
 
         if (!batch.isRepresentative) {
             setErrorMsg('Lô này gồm nhiều nhân công. Chỉ Nông dân Đại diện (isRepresentative = true) mới có quyền ký giao dịch harvestBatch lên Smart Contract (Theo quy tắc BR-09, BR-10).');
-        } else if (batch.currentStage !== 'STAGE_PLANTING') {
-            setErrorMsg(`Lô hiện ở trạng thái ${batch.currentStage}, không thể thu hoạch (chỉ chấp nhận STAGE_PLANTING).`);
+        } else if (batch.currentStage !== 'STAGE_PLANTING' && batch.currentStage !== 'PLANTING') {
+            setErrorMsg(`Lô hiện ở trạng thái ${translateStage(batch.currentStage)}, không thể thu hoạch (chỉ chấp nhận ${translateStage('STAGE_PLANTING')}).`);
         } else {
+
             setErrorMsg(null);
         }
     };
@@ -84,9 +95,8 @@ export const FarmerHarvestPage: React.FC = () => {
         }
 
         try {
-            setSubmitting(true);
+            setSubmittingOperation('harvest', true); // Thay setSubmitting(true)
             setErrorMsg(null);
-
             const res = await farmerService.harvestBatch(selectedBatch.batchId, {
                 harvestDate: new Date(harvestDate).toISOString(),
                 quantity: Number(quantity),
@@ -94,9 +104,8 @@ export const FarmerHarvestPage: React.FC = () => {
                 initialQuality,
                 notes: notes.trim() || undefined,
             });
-
             setHarvestResult(res);
-            await loadBatches(); // Reload dữ liệu sau thu hoạch
+            await loadBatches();
         } catch (err: any) {
             console.error('Lỗi xác nhận thu hoạch:', err);
             setErrorMsg(
@@ -105,7 +114,7 @@ export const FarmerHarvestPage: React.FC = () => {
                 'Không thể xác nhận thu hoạch. Vui lòng kiểm tra lại quyền Đại diện hoặc trạng thái lô.'
             );
         } finally {
-            setSubmitting(false);
+            setSubmittingOperation('harvest', false); // Thay setSubmitting(false)
         }
     };
 
@@ -117,15 +126,15 @@ export const FarmerHarvestPage: React.FC = () => {
             b.farmAreaName?.toLowerCase().includes(searchQuery.toLowerCase());
 
         if (filterStage === 'ALL') return matchesSearch;
-        if (filterStage === 'READY') return matchesSearch && b.currentStage === 'STAGE_PLANTING';
-        if (filterStage === 'HARVESTED') return matchesSearch && b.currentStage === 'STAGE_HARVESTED';
+        if (filterStage === 'READY') return matchesSearch && (b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING');
+        if (filterStage === 'HARVESTED') return matchesSearch && b.currentStage !== 'STAGE_PLANTING' && b.currentStage !== 'PLANTING';
         return matchesSearch;
     });
 
     // Thống kê nhanh
     const totalBatches = batches.length;
-    const readyBatches = batches.filter((b) => b.currentStage === 'STAGE_PLANTING').length;
-    const harvestedBatches = batches.filter((b) => b.currentStage === 'STAGE_HARVESTED').length;
+    const readyBatches = batches.filter((b) => b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING').length;
+    const harvestedBatches = batches.filter((b) => b.currentStage !== 'STAGE_PLANTING' && b.currentStage !== 'PLANTING').length;
     const repBatches = batches.filter((b) => b.isRepresentative).length;
 
     return (
@@ -256,8 +265,8 @@ export const FarmerHarvestPage: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {filteredBatches.map((batch) => {
-                        const isHarvested = batch.currentStage === 'STAGE_HARVESTED' || batch.currentStage === 'STAGE_PROCESSING' || batch.currentStage === 'STAGE_PACKAGED' || batch.currentStage === 'STAGE_SHIPPED';
-                        const canHarvest = batch.currentStage === 'STAGE_PLANTING' && batch.isRepresentative;
+                        const isHarvested = batch.currentStage !== 'STAGE_PLANTING' && batch.currentStage !== 'PLANTING';
+                        const canHarvest = (batch.currentStage === 'STAGE_PLANTING' || batch.currentStage === 'PLANTING') && batch.isRepresentative;
 
                         return (
                             <div
@@ -493,22 +502,17 @@ export const FarmerHarvestPage: React.FC = () => {
                                     Hủy bỏ
                                 </button>
 
-                                <button
+                                <AppButton
                                     type="submit"
-                                    disabled={submitting || !selectedBatch.isRepresentative || selectedBatch.currentStage !== 'STAGE_PLANTING'}
-                                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-700/20 flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!selectedBatch.isRepresentative || (selectedBatch.currentStage !== 'STAGE_PLANTING' && selectedBatch.currentStage !== 'PLANTING')}
+                                    isLoading={submittingOperations['harvest']}
+                                    variant="green"
+                                    leftIcon={<ShieldCheck className="w-4 h-4" />}
+                                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-700/20"
                                 >
-                                    {submitting ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                            Đang ký Smart Contract...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ShieldCheck className="w-4 h-4" /> Ký & Xác Nhận Thu Hoạch
-                                        </>
-                                    )}
-                                </button>
+                                    Ký & Xác Nhận Thu Hoạch
+                                </AppButton>
+
                             </div>
                         </form>
                     </div>
@@ -568,7 +572,7 @@ export const FarmerHarvestPage: React.FC = () => {
                                         <span className="font-mono text-[11px] text-blue-600 truncate block">{harvestResult.metadataURI}</span>
                                     </div>
                                     <a
-                                        href={harvestResult.metadataURI}
+                                        href={resolveIpfsUrl(harvestResult.metadataURI)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shrink-0"

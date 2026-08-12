@@ -45,6 +45,64 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose,
 
     return (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <style>{`
+                #qr-reader-element {
+                    border: none !important;
+                    background: #f8fafc !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow: hidden !important;
+                    box-sizing: border-box !important;
+                }
+                #qr-reader-element__dashboard {
+                    padding: 12px !important;
+                    background: #f8fafc !important;
+                    box-sizing: border-box !important;
+                }
+                #qr-reader-element__camera_permission_button {
+                    background: #059669 !important;
+                    color: white !important;
+                    border: none !important;
+                    padding: 8px 16px !important;
+                    border-radius: 8px !important;
+                    font-weight: bold !important;
+                    font-size: 13px !important;
+                    cursor: pointer !important;
+                }
+                #qr-reader-element__dashboard_section_swaplink {
+                    color: #059669 !important;
+                    font-size: 12px !important;
+                    font-weight: 600 !important;
+                }
+                #qr-reader-element select {
+                    padding: 6px 10px !important;
+                    border-radius: 8px !important;
+                    border: 1px solid #cbd5e1 !important;
+                    font-size: 12px !important;
+                    outline: none !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                }
+                #qr-reader-element video {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    height: auto !important;
+                    border-radius: 12px !important;
+                    object-fit: cover !important;
+                }
+                #qr-reader-element img {
+                    max-width: 100% !important;
+                    height: auto !important;
+                }
+                #qr-reader-element__scan_region {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                }
+            `}</style>
             <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl relative border border-slate-100">
                 <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                     <h3 className="font-extrabold text-slate-900 flex items-center gap-2 text-sm uppercase">

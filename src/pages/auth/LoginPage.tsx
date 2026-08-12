@@ -42,8 +42,18 @@ export const LoginPage: React.FC = () => {
                     navigate('/admin/users');
                     break;
                 case 'FARMER':
-                    navigate('/farmer/dashboard');
+                    // Kiểm tra kích thước màn hình hoặc User-Agent để phát hiện điện thoại di động
+                    const isMobileDevice = window.innerWidth < 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
+                    if (isMobileDevice) {
+                        // Điều hướng sang trang di động chuẩn riêng biệt
+                        navigate('/farmer/mobile');
+                    } else {
+                        // Điều hướng sang trang máy tính bình thường
+                        navigate('/farmer/dashboard');
+                    }
                     break;
+
                 case 'PROCESSOR':
                 case 'COOPERATIVE':
                     navigate('/cooperative/dashboard');

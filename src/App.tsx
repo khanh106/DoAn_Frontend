@@ -18,7 +18,7 @@ import { ProfilePage } from './pages/common/ProfilePage';
 import { PostHarvestProcessingPage } from './pages/processor/PostHarvestProcessingPage';
 import { BlockchainContractsPage } from './pages/admin/BlockchainContractsPage';
 import { SystemLogsPage } from './pages/admin/SystemLogsPage';
-
+import { FarmerMobilePage } from './pages/farmer/FarmerMobilePage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -97,6 +97,8 @@ export const App: React.FC = () => {
 
         {/* PROTECTED ROUTES - PORTAL 2: NÔNG DÂN */}
         <Route element={<ProtectedRoute allowedRoles={['FARMER']} />}>
+
+          {/* Giao diện Desktop (Bọc bởi FarmerLayout có Sidebar bên trái) */}
           <Route element={<FarmerLayout />}>
             <Route path="/farmer" element={<Navigate to="/farmer/dashboard" replace />} />
             <Route path="/farmer/dashboard" element={<FarmerDashboardPage />} />
@@ -107,9 +109,13 @@ export const App: React.FC = () => {
             <Route path="/farmer/guides" element={<FarmerGuidesPage />} />
             <Route path="/farmer/*" element={<FarmerDashboardPage />} />
             <Route path="/farmer/profile" element={<ProfilePage />} />
-
           </Route>
+
+          {/* Giao diện Di động chuyên biệt (Không bọc bởi FarmerLayout để hiển thị tràn màn hình điện thoại) */}
+          <Route path="/farmer/mobile" element={<FarmerMobilePage />} />
+
         </Route>
+
 
         {/* PROTECTED ROUTES - PORTAL 3: HỢP TÁC XÃ / CHẾ BIẾN */}
         <Route element={<ProtectedRoute allowedRoles={['PROCESSOR', 'COOPERATIVE']} />}>

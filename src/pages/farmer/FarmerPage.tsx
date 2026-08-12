@@ -5,6 +5,9 @@ import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
 import { AppModal } from '../../components/ui/AppModal';
 import { useAuthStore } from '../../stores/authStore';
+import { translateStage } from '../../types';
+import { useUIStore } from '../../stores/uiStore';
+
 import {
     farmerService,
     type AssignedBatch,
@@ -50,7 +53,7 @@ export const FarmerPage: React.FC = () => {
     const [logDate, setLogDate] = useState<string>(new Date().toISOString().slice(0, 16));
     const [description, setDescription] = useState<string>('');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const [submittingLog, setSubmittingLog] = useState<boolean>(false);
+
 
     // State cho Modal Thu Hoạch (Harvest)
     const [isHarvestModalOpen, setIsHarvestModalOpen] = useState<boolean>(false);
@@ -60,10 +63,13 @@ export const FarmerPage: React.FC = () => {
     const [harvestUnit, setHarvestUnit] = useState<string>('kg');
     const [initialQuality, setInitialQuality] = useState<string>('Loại 1 (Xuất khẩu)');
     const [harvestNotes, setHarvestNotes] = useState<string>('');
-    const [submittingHarvest, setSubmittingHarvest] = useState<boolean>(false);
+    const submittingOperations = useUIStore((state) => state.submittingOperations);
+    const setSubmittingOperation = useUIStore((state) => state.setSubmittingOperation);
+
 
     // State tiếp nhận lô & xem nhật ký
-    const [acceptingId, setAcceptingId] = useState<string | null>(null);
+
+    const [isAcceptSuccessOpen, setIsAcceptSuccessOpen] = useState<boolean>(false);
     const [selectedBatchForLogs, setSelectedBatchForLogs] = useState<string>('');
     const [batchLogs, setBatchLogs] = useState<CultivationLog[]>([]);
     const [logsLoading, setLogsLoading] = useState<boolean>(false);
@@ -117,7 +123,7 @@ export const FarmerPage: React.FC = () => {
         const total = batches.length;
         const pending = batches.filter((b) => b.workerStatus !== 'ACCEPTED').length;
         const representative = batches.filter((b) => b.isRepresentative).length;
-        const harvested = batches.filter((b) => b.currentStage === 'STAGE_HARVESTED' || b.currentStage === 'HARVESTED').length;
+        const harvested = batches.filter((b) => b.currentStage !== 'STAGE_PLANTING' && b.currentStage !== 'PLANTING').length;
         return { total, pending, representative, harvested };
     }, [batches]);
 
@@ -141,18 +147,19 @@ export const FarmerPage: React.FC = () => {
 
     // Xử lý Tiếp nhận Lô Phân công (Gọi Smart Contract acceptBatch qua Custodial Wallet)
     const handleAcceptBatch = async (batchId: string) => {
-        setAcceptingId(batchId);
+        setSubmittingOperation(`accept-${batchId}`, true); // Bật loading cho riêng lô này
         try {
             await farmerService.acceptBatch(batchId);
-            alert('Bạn đã xác nhận tiếp nhận lô phân công thành công!');
+            setIsAcceptSuccessOpen(true);
             await fetchAssignedBatches();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             alert(errorObj.response?.data?.message || 'Xác nhận nhận lô thất bại!');
         } finally {
-            setAcceptingId(null);
+            setSubmittingOperation(`accept-${batchId}`, false); // Tắt loading
         }
     };
+
 
     // Xử lý gửi Form Ghi Nhật ký canh tác (Upload hình ảnh lên IPFS)
     const handleCreateLogSubmit = async (e: React.FormEvent) => {
@@ -166,7 +173,7 @@ export const FarmerPage: React.FC = () => {
             return;
         }
 
-        setSubmittingLog(true);
+        setSubmittingOperation('createLog', true); // Bật loading
         try {
             const formData = new FormData();
             formData.append('ActivityType', activityType);
@@ -180,12 +187,10 @@ export const FarmerPage: React.FC = () => {
             await farmerService.createCultivationLog(logBatchId, formData);
             alert('Đã ghi nhận nhật ký canh tác thành công!');
 
-            // Reset form & close modal
             setDescription('');
             setSelectedFiles([]);
             setIsLogModalOpen(false);
 
-            // Refresh logs
             if (activeTab === 'logs') {
                 void fetchBatchLogs(logBatchId);
             }
@@ -193,9 +198,10 @@ export const FarmerPage: React.FC = () => {
             const errorObj = err as AxiosError<{ message?: string }>;
             alert(errorObj.response?.data?.message || 'Ghi nhật ký thất bại!');
         } finally {
-            setSubmittingLog(false);
+            setSubmittingOperation('createLog', false); // Tắt loading
         }
     };
+
 
     // Xử lý gửi Form Thu Hoạch (Harvest - Ký Smart Contract harvestBatch)
     const handleHarvestSubmit = async (e: React.FormEvent) => {
@@ -209,7 +215,7 @@ export const FarmerPage: React.FC = () => {
             return;
         }
 
-        setSubmittingHarvest(true);
+        setSubmittingOperation('harvest', true); // Bật loading
         try {
             const result = await farmerService.harvestBatch(harvestBatchId, {
                 harvestDate: new Date(harvestDate).toISOString(),
@@ -228,9 +234,10 @@ export const FarmerPage: React.FC = () => {
             const errorObj = err as AxiosError<{ message?: string }>;
             alert(errorObj.response?.data?.message || 'Xác nhận thu hoạch thất bại! Bạn cần là Người Đại Diện của lô để thực hiện thao tác này.');
         } finally {
-            setSubmittingHarvest(false);
+            setSubmittingOperation('harvest', false); // Tắt loading
         }
     };
+
 
     // Định nghĩa cột cho bảng Lô canh tác
     const columns: Column<AssignedBatch>[] = [
@@ -257,9 +264,10 @@ export const FarmerPage: React.FC = () => {
             render: (item) => (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">
                     <Activity className="w-3.5 h-3.5 text-slate-600" />
-                    {item.currentStage}
+                    {translateStage(item.currentStage)}
                 </span>
             ),
+
         },
         {
             header: 'Trạng Thái Nông Dân',
@@ -278,26 +286,31 @@ export const FarmerPage: React.FC = () => {
             render: (item) => (
                 <div className="flex items-center justify-center gap-2">
                     {item.workerStatus !== 'ACCEPTED' ? (
-                        <button
+                        <AppButton
+                            variant="green"
+                            size="sm"
                             onClick={() => handleAcceptBatch(item.batchId)}
-                            disabled={acceptingId === item.batchId}
-                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                            isLoading={submittingOperations[`accept-${item.batchId}`]}
+                            leftIcon={<UserCheck className="w-3.5 h-3.5" />}
+                            className="bg-slate-800 hover:bg-slate-900 text-white border-0 shadow-xs cursor-pointer"
                         >
-                            <UserCheck className="w-3.5 h-3.5" />
-                            <span>Xác nhận nhận lô</span>
-                        </button>
+                            Xác nhận nhận lô
+                        </AppButton>
                     ) : (
+
                         <div className="flex items-center gap-1.5">
-                            <button
-                                onClick={() => {
-                                    setLogBatchId(item.batchId);
-                                    setIsLogModalOpen(true);
-                                }}
-                                className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                                <Plus className="w-3.5 h-3.5 text-slate-600" /> Ghi nhật ký
-                            </button>
-                            {item.isRepresentative && item.currentStage !== 'STAGE_HARVESTED' && (
+                            {(item.currentStage === 'STAGE_PLANTING' || item.currentStage === 'PLANTING') && (
+                                <button
+                                    onClick={() => {
+                                        setLogBatchId(item.batchId);
+                                        setIsLogModalOpen(true);
+                                    }}
+                                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                    <Plus className="w-3.5 h-3.5 text-slate-600" /> Ghi nhật ký
+                                </button>
+                            )}
+                            {item.isRepresentative && (item.currentStage === 'STAGE_PLANTING' || item.currentStage === 'PLANTING') && (
                                 <button
                                     onClick={() => {
                                         setHarvestBatchId(item.batchId);
@@ -334,20 +347,22 @@ export const FarmerPage: React.FC = () => {
                         variant="outline"
                         onClick={fetchAssignedBatches}
                         isLoading={loading}
-                        className="flex items-center gap-2"
+                        leftIcon={<RefreshCw className="w-4 h-4" />}
                     >
-                        <RefreshCw className="w-4 h-4" /> Làm mới
+                        Làm mới
                     </AppButton>
 
                     <AppButton
                         variant="orange"
                         onClick={() => {
-                            if (batches.length > 0) setLogBatchId(batches[0].batchId);
+                            const activeBatches = batches.filter(b => b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING');
+                            if (activeBatches.length > 0) setLogBatchId(activeBatches[0].batchId);
                             setIsLogModalOpen(true);
                         }}
-                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+                        leftIcon={<Plus className="w-4 h-4" />}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
                     >
-                        <Plus className="w-4 h-4" /> Ghi Nhật Ký Canh Tác
+                        Ghi Nhật Ký Canh Tác
                     </AppButton>
                 </div>
             </div>
@@ -567,11 +582,13 @@ export const FarmerPage: React.FC = () => {
                             className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
                         >
                             <option value="">-- Chọn Lô Phân Công --</option>
-                            {batches.map((b) => (
-                                <option key={b.batchId} value={b.batchId}>
-                                    Lô {b.batchCode} - {b.productName} ({b.farmAreaName})
-                                </option>
-                            ))}
+                            {batches
+                                .filter((b) => b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING')
+                                .map((b) => (
+                                    <option key={b.batchId} value={b.batchId}>
+                                        Lô {b.batchCode} - {b.productName} ({b.farmAreaName})
+                                    </option>
+                                ))}
                         </select>
                     </div>
 
@@ -585,10 +602,11 @@ export const FarmerPage: React.FC = () => {
                             >
                                 <option value="Bón phân">Bón phân</option>
                                 <option value="Tưới nước">Tưới nước</option>
-                                <option value="Phun thuốc bảo vệ thực vật">Phun thuốc BVTV</option>
-                                <option value="Làm cỏ & Cắt tỉa">Làm cỏ & Cắt tỉa</option>
+                                <option value="Phun thuốc">Phun thuốc bảo vệ</option>
+                                <option value="Cắt tỉa">Cắt tỉa / Tỉa cành</option>
                                 <option value="Kiểm tra sâu bệnh">Kiểm tra sâu bệnh</option>
-                                <option value="Khác">Hoạt động khác</option>
+                                <option value="Làm cỏ">Làm cỏ / Vệ sinh vườn</option>
+                                <option value="Khác">Khác</option>
                             </select>
                         </div>
 
@@ -636,9 +654,15 @@ export const FarmerPage: React.FC = () => {
                         <AppButton variant="outline" type="button" onClick={() => setIsLogModalOpen(false)}>
                             Hủy bỏ
                         </AppButton>
-                        <AppButton variant="orange" className="bg-emerald-600 hover:bg-emerald-700 text-white border-0" type="submit" isLoading={submittingLog}>
+                        <AppButton
+                            variant="orange"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+                            type="submit"
+                            isLoading={submittingOperations['createLog']}
+                        >
                             Lưu & Upload IPFS
                         </AppButton>
+
                     </div>
                 </form>
             </AppModal>
@@ -660,7 +684,7 @@ export const FarmerPage: React.FC = () => {
                         >
                             <option value="">-- Chọn Lô Phụ Trách Đại Diện --</option>
                             {batches
-                                .filter((b) => b.isRepresentative && b.currentStage !== 'STAGE_HARVESTED')
+                                .filter((b) => b.isRepresentative && (b.currentStage === 'STAGE_PLANTING' || b.currentStage === 'PLANTING'))
                                 .map((b) => (
                                     <option key={b.batchId} value={b.batchId}>
                                         Lô {b.batchCode} - {b.productName} ({b.fruitTypeName})
@@ -740,11 +764,42 @@ export const FarmerPage: React.FC = () => {
                         <AppButton variant="outline" type="button" onClick={() => setIsHarvestModalOpen(false)}>
                             Hủy bỏ
                         </AppButton>
-                        <AppButton variant="orange" className="bg-emerald-600 hover:bg-emerald-700 text-white border-0" type="submit" isLoading={submittingHarvest}>
+                        <AppButton
+                            variant="orange"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+                            type="submit"
+                            isLoading={submittingOperations['harvest']}
+                        >
                             Ký & Gửi Giao Dịch Thu Hoạch
                         </AppButton>
+
                     </div>
                 </form>
+            </AppModal>
+
+            {/* POPUP THÀNH CÔNG TIẾP NHẬN LÔ */}
+            <AppModal
+                isOpen={isAcceptSuccessOpen}
+                onClose={() => setIsAcceptSuccessOpen(false)}
+                title="Thông báo thành công"
+                maxWidth="sm"
+            >
+                <div className="flex flex-col items-center text-center p-4">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4 shadow-xs">
+                        <CheckCircle2 className="w-10 h-10 text-emerald-600 animate-bounce" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-800 mb-2">Thao tác thành công</h3>
+                    <p className="text-sm font-semibold text-slate-500 mb-6 leading-relaxed">
+                        Bạn đã xác nhận tiếp nhận lô phân công thành công!
+                    </p>
+                    <AppButton
+                        onClick={() => setIsAcceptSuccessOpen(false)}
+                        variant="green"
+                        className="w-full py-2.5 rounded-xl font-bold shadow-md shadow-emerald-500/20"
+                    >
+                        Đóng
+                    </AppButton>
+                </div>
             </AppModal>
         </div>
     );

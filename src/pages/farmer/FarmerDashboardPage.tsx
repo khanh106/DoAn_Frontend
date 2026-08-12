@@ -82,7 +82,7 @@ export const FarmerDashboardPage: React.FC = () => {
         const total = batches.length;
         const pending = batches.filter((b) => b.workerStatus !== 'ACCEPTED').length;
         const representative = batches.filter((b) => b.isRepresentative).length;
-        const harvested = batches.filter((b) => b.currentStage === 'STAGE_HARVESTED' || b.currentStage === 'HARVESTED').length;
+        const harvested = batches.filter((b) => b.currentStage !== 'STAGE_PLANTING' && b.currentStage !== 'PLANTING').length;
         return { total, pending, representative, harvested };
     }, [batches]);
 
@@ -127,15 +127,17 @@ export const FarmerDashboardPage: React.FC = () => {
                                 void fetchBatches();
                             }}
                             isLoading={loading}
+                            leftIcon={<RefreshCw className="w-4 h-4" />}
                             className="bg-white/10 hover:bg-white/20 text-white border-white/20"
                         >
-                            <RefreshCw className="w-4 h-4 mr-2" /> Đồng bộ
+                            Đồng bộ
                         </AppButton>
                         <AppButton
                             onClick={() => navigate('/farmer/batches')}
+                            rightIcon={<ArrowRight className="w-4 h-4" />}
                             className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold border-0 shadow-lg"
                         >
-                            Xem Lô Phân Công <ArrowRight className="w-4 h-4 ml-2" />
+                            Xem Lô Phân Công
                         </AppButton>
                     </div>
                 </div>
@@ -167,19 +169,21 @@ export const FarmerDashboardPage: React.FC = () => {
                                     <AppButton
                                         size="sm"
                                         variant="outline"
+                                        leftIcon={<X className="w-4 h-4" />}
                                         className="border-red-200 text-red-600 hover:bg-red-50"
                                         isLoading={respondingId === inv.id}
                                         onClick={() => handleRespondInvitation(inv.id, 'REJECT')}
                                     >
-                                        <X className="w-4 h-4 mr-1" /> Từ chối
+                                        Từ chối
                                     </AppButton>
                                     <AppButton
                                         size="sm"
+                                        leftIcon={<Check className="w-4 h-4" />}
                                         className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                                         isLoading={respondingId === inv.id}
                                         onClick={() => handleRespondInvitation(inv.id, 'ACCEPT')}
                                     >
-                                        <Check className="w-4 h-4 mr-1" /> Chấp nhận
+                                        Chấp nhận
                                     </AppButton>
                                 </div>
                             </div>

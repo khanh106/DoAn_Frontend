@@ -20,8 +20,9 @@ export const EditMaterialModal: React.FC<EditMaterialModalProps> = ({
     const [unit, setUnit] = useState<string>('');
     const [price, setPrice] = useState<number | ''>('');
     const [dosagePerHa, setDosagePerHa] = useState<number | ''>('');
-    const [concentration, setConcentration] = useState<string>('');
+    const [concentration, setConcentration] = useState<number | ''>('');
     const [supplier, setSupplier] = useState<string>('');
+
     const [npkRatio, setNpkRatio] = useState<string>('');
     const [note, setNote] = useState<string>('');
     const [submitting, setSubmitting] = useState<boolean>(false);
@@ -32,12 +33,14 @@ export const EditMaterialModal: React.FC<EditMaterialModalProps> = ({
             setUnit(item.unit || '');
             setPrice(item.price ?? '');
             setDosagePerHa(item.dosagePerHa ?? '');
-            setConcentration(item.concentration ? String(item.concentration) : '');
+            setConcentration(item.concentration ?? '');
             setSupplier(item.supplier || '');
             setNpkRatio(item.npkRatio || '');
             setNote(item.note || '');
         }
     }, [item]);
+
+
 
     if (!isOpen || !item) return null;
 
@@ -50,11 +53,12 @@ export const EditMaterialModal: React.FC<EditMaterialModalProps> = ({
                 unit: unit.trim(),
                 price: price === '' ? 0 : Number(price),
                 dosagePerHa: dosagePerHa === '' ? undefined : Number(dosagePerHa),
-                concentration: concentration ? concentration : undefined,
+                concentration: concentration === '' ? undefined : Number(concentration),
                 supplier: supplier.trim() || undefined,
                 npkRatio: npkRatio.trim() || undefined,
                 note: note.trim() || undefined,
             });
+
             onClose();
         } catch (error) {
             console.error(error);
@@ -158,14 +162,16 @@ export const EditMaterialModal: React.FC<EditMaterialModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="block font-semibold text-slate-700 mb-1">Nồng độ / Hàm lượng</label>
+                                <label className="block font-semibold text-slate-700 mb-1">Nồng độ / Hàm lượng (%)</label>
                                 <input
-                                    type="text"
+                                    type="number"
+                                    step="any"
                                     value={concentration}
-                                    onChange={(e) => setConcentration(e.target.value)}
+                                    onChange={(e) => setConcentration(e.target.value === '' ? '' : Number(e.target.value))}
                                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                                 />
                             </div>
+
                         </div>
                     )}
 
