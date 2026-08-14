@@ -13,6 +13,7 @@ import {
     type AssignedBatch,
     type CultivationLog,
 } from '../../services/farmerService';
+import { toast } from '../../utils/toast';
 import {
     RefreshCw,
     Plus,
@@ -87,7 +88,9 @@ export const FarmerPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi tải danh sách lô phân công:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể kết nối API danh sách lô phân công.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối API danh sách lô phân công.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -150,11 +153,12 @@ export const FarmerPage: React.FC = () => {
         setSubmittingOperation(`accept-${batchId}`, true); // Bật loading cho riêng lô này
         try {
             await farmerService.acceptBatch(batchId);
+            toast.success('Xác nhận tiếp nhận lô phân công thành công!');
             setIsAcceptSuccessOpen(true);
             await fetchAssignedBatches();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Xác nhận nhận lô thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Xác nhận nhận lô thất bại!');
         } finally {
             setSubmittingOperation(`accept-${batchId}`, false); // Tắt loading
         }
@@ -165,11 +169,11 @@ export const FarmerPage: React.FC = () => {
     const handleCreateLogSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!logBatchId) {
-            alert('Vui lòng chọn lô sản xuất!');
+            toast.warning('Vui lòng chọn lô sản xuất!');
             return;
         }
         if (!description.trim()) {
-            alert('Vui lòng nhập nội dung công việc nhật ký!');
+            toast.warning('Vui lòng nhập nội dung công việc nhật ký!');
             return;
         }
 
@@ -185,7 +189,7 @@ export const FarmerPage: React.FC = () => {
             });
 
             await farmerService.createCultivationLog(logBatchId, formData);
-            alert('Đã ghi nhận nhật ký canh tác thành công!');
+            toast.success('Đã ghi nhận nhật ký canh tác thành công!');
 
             setDescription('');
             setSelectedFiles([]);
@@ -196,7 +200,7 @@ export const FarmerPage: React.FC = () => {
             }
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Ghi nhật ký thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Ghi nhật ký thất bại!');
         } finally {
             setSubmittingOperation('createLog', false); // Tắt loading
         }
@@ -207,11 +211,11 @@ export const FarmerPage: React.FC = () => {
     const handleHarvestSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!harvestBatchId) {
-            alert('Vui lòng chọn lô thu hoạch!');
+            toast.warning('Vui lòng chọn lô thu hoạch!');
             return;
         }
         if (!harvestQuantity || Number(harvestQuantity) <= 0) {
-            alert('Sản lượng thu hoạch phải lớn hơn 0!');
+            toast.warning('Sản lượng thu hoạch phải lớn hơn 0!');
             return;
         }
 
@@ -225,14 +229,14 @@ export const FarmerPage: React.FC = () => {
                 notes: harvestNotes,
             });
 
-            alert(`Xác nhận Thu Hoạch Lô ${result.batchCode} Thành Công!\nTrạng thái Smart Contract: ${result.stage}`);
+            toast.success(`Xác nhận Thu Hoạch Lô ${result.batchCode} Thành Công! Trạng thái Smart Contract: ${result.stage}`);
             setIsHarvestModalOpen(false);
             setHarvestQuantity('');
             setHarvestNotes('');
             await fetchAssignedBatches();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Xác nhận thu hoạch thất bại! Bạn cần là Người Đại Diện của lô để thực hiện thao tác này.');
+            toast.error(errorObj.response?.data?.message || 'Xác nhận thu hoạch thất bại! Bạn cần là Người Đại Diện của lô để thực hiện thao tác này.');
         } finally {
             setSubmittingOperation('harvest', false); // Tắt loading
         }

@@ -4,6 +4,7 @@ import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
 import { apiClient } from '../../services/api';
+import { toast } from '../../utils/toast';
 import { Plus, Download, RefreshCw, CheckCircle, Lock } from 'lucide-react';
 
 export interface UserAccountResponse {
@@ -32,7 +33,9 @@ export const AdminAccountPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi khi tải danh sách người dùng:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể tải danh sách tài khoản từ Backend API.');
+            const msg = errorObj.response?.data?.message || 'Không thể tải danh sách tài khoản từ Backend API.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -52,7 +55,7 @@ export const AdminAccountPage: React.FC = () => {
             fetchUsers();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Thao tác duyệt thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Thao tác duyệt thất bại!');
         } finally {
             setActionLoading(null);
         }
@@ -65,7 +68,7 @@ export const AdminAccountPage: React.FC = () => {
             fetchUsers();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Thao tác khóa thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Thao tác khóa thất bại!');
         } finally {
             setActionLoading(null);
         }
@@ -148,12 +151,6 @@ export const AdminAccountPage: React.FC = () => {
                     </AppButton>
                 </div>
             </div>
-
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold">
-                    ⚠️ {error}
-                </div>
-            )}
 
             {loading ? (
                 <div className="p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 font-medium">

@@ -13,6 +13,7 @@ import {
     type AssignedBatch,
     type CultivationLog,
 } from '../../services/farmerService';
+import { toast } from '../../utils/toast';
 import {
     RefreshCw,
     Plus,
@@ -77,7 +78,9 @@ export const FarmerBatchesPage: React.FC = () => {
             }
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Không thể kết nối API danh sách lô phân công.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối API danh sách lô phân công.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -126,11 +129,12 @@ export const FarmerBatchesPage: React.FC = () => {
         setSubmittingOperation(`accept-${batchId}`, true);
         try {
             await farmerService.acceptBatch(batchId);
+            toast.success('Xác nhận tiếp nhận lô thành công!');
             setIsAcceptSuccessOpen(true);
             await fetchAssignedBatches();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Xác nhận nhận lô thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Xác nhận nhận lô thất bại!');
         } finally {
             setSubmittingOperation(`accept-${batchId}`, false);
         }
@@ -139,11 +143,11 @@ export const FarmerBatchesPage: React.FC = () => {
     const handleCreateLogSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!logBatchId) {
-            alert('Vui lòng chọn lô sản xuất!');
+            toast.warning('Vui lòng chọn lô sản xuất!');
             return;
         }
         if (!description.trim()) {
-            alert('Vui lòng nhập nội dung nhật ký!');
+            toast.warning('Vui lòng nhập nội dung nhật ký!');
             return;
         }
 
@@ -156,7 +160,7 @@ export const FarmerBatchesPage: React.FC = () => {
             selectedFiles.forEach((file) => formData.append('Images', file));
 
             await farmerService.createCultivationLog(logBatchId, formData);
-            alert('Đã ghi nhận nhật ký canh tác thành công!');
+            toast.success('Đã ghi nhận nhật ký canh tác thành công!');
             setDescription('');
             setSelectedFiles([]);
             setIsLogModalOpen(false);
@@ -164,7 +168,7 @@ export const FarmerBatchesPage: React.FC = () => {
             if (activeTab === 'logs') void fetchBatchLogs(logBatchId);
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Ghi nhật ký thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Ghi nhật ký thất bại!');
         } finally {
             setSubmittingOperation('createLog', false);
         }
@@ -173,11 +177,11 @@ export const FarmerBatchesPage: React.FC = () => {
     const handleHarvestSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!harvestBatchId) {
-            alert('Vui lòng chọn lô thu hoạch!');
+            toast.warning('Vui lòng chọn lô thu hoạch!');
             return;
         }
         if (!harvestQuantity || Number(harvestQuantity) <= 0) {
-            alert('Sản lượng thu hoạch phải lớn hơn 0!');
+            toast.warning('Sản lượng thu hoạch phải lớn hơn 0!');
             return;
         }
 
@@ -191,14 +195,14 @@ export const FarmerBatchesPage: React.FC = () => {
                 notes: harvestNotes,
             });
 
-            alert(`Xác nhận Thu Hoạch Lô ${result.batchCode} Thành Công! Trạng thái Smart Contract: ${result.stage}`);
+            toast.success(`Xác nhận Thu Hoạch Lô ${result.batchCode} Thành Công! Trạng thái Smart Contract: ${result.stage}`);
             setIsHarvestModalOpen(false);
             setHarvestQuantity('');
             setHarvestNotes('');
             await fetchAssignedBatches();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Xác nhận thu hoạch thất bại! Bạn cần là Người Đại Diện của lô.');
+            toast.error(errorObj.response?.data?.message || 'Xác nhận thu hoạch thất bại! Bạn cần là Người Đại Diện của lô.');
         } finally {
             setSubmittingOperation('harvest', false);
         }
@@ -306,9 +310,9 @@ export const FarmerBatchesPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <AppButton 
-                        variant="outline" 
-                        onClick={fetchAssignedBatches} 
+                    <AppButton
+                        variant="outline"
+                        onClick={fetchAssignedBatches}
                         isLoading={loading}
                         leftIcon={<RefreshCw className="w-4 h-4" />}
                     >

@@ -13,6 +13,7 @@ import {
     type AssignedBatch,
     type CultivationLog,
 } from '../../services/farmerService';
+import { toast } from '../../utils/toast';
 import {
     RefreshCw,
     Plus,
@@ -114,7 +115,9 @@ export const FarmerMobilePage: React.FC = () => {
             }
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Không thể kết nối máy chủ.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối máy chủ.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -159,11 +162,12 @@ export const FarmerMobilePage: React.FC = () => {
         setSubmittingOperation(`accept-${batchId}`, true);
         try {
             await farmerService.acceptBatch(batchId);
+            toast.success('Xác nhận tiếp nhận lô phân công thành công!');
             setIsAcceptSuccessOpen(true);
             await fetchAssignedBatches();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Tiếp nhận lô thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Tiếp nhận lô thất bại!');
         } finally {
             setSubmittingOperation(`accept-${batchId}`, false);
         }
@@ -194,11 +198,11 @@ export const FarmerMobilePage: React.FC = () => {
     const handleCreateLogSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!logBatchId) {
-            alert('Vui lòng chọn lô!');
+            toast.warning('Vui lòng chọn lô!');
             return;
         }
         if (!description.trim()) {
-            alert('Vui lòng nhập nội dung!');
+            toast.warning('Vui lòng nhập nội dung!');
             return;
         }
 
@@ -214,7 +218,7 @@ export const FarmerMobilePage: React.FC = () => {
             });
 
             await farmerService.createCultivationLog(logBatchId, formData);
-            alert('Đã lưu nhật ký canh tác thành công!');
+            toast.success('Đã lưu nhật ký canh tác thành công!');
 
             setDescription('');
             setSelectedFiles([]);
@@ -226,7 +230,7 @@ export const FarmerMobilePage: React.FC = () => {
             }
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Gửi thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Gửi thất bại!');
         } finally {
             setSubmittingOperation('createLog', false);
         }
@@ -236,11 +240,11 @@ export const FarmerMobilePage: React.FC = () => {
     const handleHarvestSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!harvestBatchId) {
-            alert('Vui lòng chọn lô thu hoạch!');
+            toast.warning('Vui lòng chọn lô thu hoạch!');
             return;
         }
         if (!harvestQuantity || Number(harvestQuantity) <= 0) {
-            alert('Sản lượng thu hoạch phải lớn hơn 0!');
+            toast.warning('Sản lượng thu hoạch phải lớn hơn 0!');
             return;
         }
 
@@ -254,14 +258,14 @@ export const FarmerMobilePage: React.FC = () => {
                 notes: harvestNotes,
             });
 
-            alert(`Ký Smart Contract thu hoạch lô ${result.batchCode} thành công!`);
+            toast.success(`Ký Smart Contract thu hoạch lô ${result.batchCode} thành công!`);
             setIsHarvestModalOpen(false);
             setHarvestQuantity('');
             setHarvestNotes('');
             await fetchAssignedBatches();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(errorObj.response?.data?.message || 'Ký giao dịch thu hoạch thất bại!');
+            toast.error(errorObj.response?.data?.message || 'Ký giao dịch thu hoạch thất bại!');
         } finally {
             setSubmittingOperation('harvest', false);
         }
@@ -300,7 +304,7 @@ export const FarmerMobilePage: React.FC = () => {
                         <RefreshCw className={`w-4 h-4 text-emerald-100 ${loading ? 'animate-spin' : ''}`} />
                     </button>
                     <button
-                        onClick={() => alert('Camera quét QR đang được kết nối...')}
+                        onClick={() => toast.info('Tính năng quét QR đang được phát triển.')}
                         className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors flex items-center justify-center"
                     >
                         <QrCode className="w-4 h-4 text-emerald-100" />

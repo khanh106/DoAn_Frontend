@@ -1,18 +1,29 @@
 import React, { useState } from 'react';
-import { X, QrCode, Download } from 'lucide-react';
+import { X, QrCode, Download, Truck } from 'lucide-react';
 import {
     shippingAndQrService,
     type QRTargetType,
     type GenerateQRCodeResponseDto
 } from '../../../services/shippingAndQrService';
+import { toast } from '../../../utils/toast';
 
 interface Props {
     batchId: string;
     onClose: () => void;
     onSuccess: () => void;
+    /**
+     * Callback khi người dùng đã sinh QR xong và muốn tiếp tục tạo đơn vận
+     * cho cùng lô đó (dùng cho luồng từ modal Tạo Vận Đơn).
+     */
+    onSuccessAndCreateShipment?: () => void;
 }
 
-export const GenerateQRCodeModal: React.FC<Props> = ({ batchId, onClose, onSuccess }) => {
+export const GenerateQRCodeModal: React.FC<Props> = ({
+    batchId,
+    onClose,
+    onSuccess,
+    onSuccessAndCreateShipment,
+}) => {
     const [targetType, setTargetType] = useState<QRTargetType>('COMMERCIAL');
     const [submitting, setSubmitting] = useState(false);
     const [qrResult, setQrResult] = useState<GenerateQRCodeResponseDto | null>(null);
@@ -26,7 +37,7 @@ export const GenerateQRCodeModal: React.FC<Props> = ({ batchId, onClose, onSucce
             });
             setQrResult(res);
         } catch (err: any) {
-            alert(`❌ Lỗi sinh mã QR: ${err.response?.data?.message || err.message}`);
+            toast.error(`Lỗi sinh mã QR: ${err.response?.data?.message || err.message}`);
         } finally {
             setSubmitting(false);
         }
@@ -89,7 +100,7 @@ export const GenerateQRCodeModal: React.FC<Props> = ({ batchId, onClose, onSucce
                             <div className="font-bold text-slate-900">Mã Lô: {qrResult.targetCode}</div>
                             <div className="font-mono text-slate-500 text-[11px] truncate">{qrResult.qrValue}</div>
                         </div>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
                             <a
                                 href={`data:${qrResult.imageContentType};base64,${qrResult.imageBase64}`}
                                 download={`QR-${qrResult.targetCode}.png`}
@@ -98,6 +109,17 @@ export const GenerateQRCodeModal: React.FC<Props> = ({ batchId, onClose, onSucce
                                 <Download className="w-4 h-4" />
                                 Tải mã QR về máy
                             </a>
+                            {onSuccessAndCreateShipment && (
+                                <button
+                                    onClick={() => {
+                                        onSuccessAndCreateShipment();
+                                    }}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs inline-flex items-center gap-1.5"
+                                >
+                                    <Truck className="w-4 h-4" />
+                                    Tiếp tục tạo đơn vận
+                                </button>
+                            )}
                             <button
                                 onClick={() => {
                                     onSuccess();

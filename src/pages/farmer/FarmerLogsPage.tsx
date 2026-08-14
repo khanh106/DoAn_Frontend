@@ -13,6 +13,7 @@ import {
     type CultivationLog,
 } from '../../services/farmerService';
 import { resolveIpfsUrl } from '../../services/ipfsService';
+import { toast } from '../../utils/toast';
 
 import {
     FileText,
@@ -97,7 +98,9 @@ export const FarmerLogsPage: React.FC = () => {
             }
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Không thể tải danh sách lô phân công.');
+            const msg = errorObj.response?.data?.message || 'Không thể tải danh sách lô phân công.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -189,11 +192,13 @@ export const FarmerLogsPage: React.FC = () => {
 
         if (!formBatchId) {
             setFormError('Vui lòng chọn Lô sản xuất!');
+            toast.warning('Vui lòng chọn Lô sản xuất!');
             return;
         }
 
         if (!formDescription.trim()) {
             setFormError('Vui lòng nhập mô tả chi tiết hoạt động canh tác!');
+            toast.warning('Vui lòng nhập mô tả chi tiết hoạt động canh tác!');
             return;
         }
 
@@ -208,6 +213,7 @@ export const FarmerLogsPage: React.FC = () => {
             });
 
             await farmerService.createCultivationLog(formBatchId, formData);
+            toast.success('Ghi nhật ký canh tác thành công!');
             setFormSuccess('Ghi nhật ký canh tác thành công!');
 
             setTimeout(() => {
@@ -217,7 +223,9 @@ export const FarmerLogsPage: React.FC = () => {
             }, 1200);
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setFormError(errorObj.response?.data?.message || 'Không thể ghi nhật ký. Vui lòng thử lại!');
+            const msg = errorObj.response?.data?.message || 'Không thể ghi nhật ký. Vui lòng thử lại!';
+            setFormError(msg);
+            toast.error(msg);
         } finally {
             setSubmittingOperation('createLog', false);
         }

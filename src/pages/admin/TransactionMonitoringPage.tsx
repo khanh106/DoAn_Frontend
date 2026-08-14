@@ -21,6 +21,7 @@ import {
     Layers
 } from 'lucide-react';
 import { apiClient } from '../../services/api';
+import { toast } from '../../utils/toast';
 
 // Interface dữ liệu trả về từ Backend API
 export interface BlockchainTxResponse {
@@ -94,7 +95,9 @@ export const TransactionMonitoringPage: React.FC = () => {
             setStats(statsRes.data);
         } catch (err: any) {
             console.error('Lỗi khi kết nối Backend API:', err);
-            setError(err.response?.data?.message || 'Không thể tải danh sách giao dịch từ Backend API.');
+            const msg = err.response?.data?.message || 'Không thể tải danh sách giao dịch từ Backend API.';
+            setError(msg);
+            toast.error(msg);
             setTransactions([]);
         } finally {
             setLoading(false);
@@ -122,12 +125,12 @@ export const TransactionMonitoringPage: React.FC = () => {
         try {
             const res = await apiClient.post(`/v1/admin/blockchain/transactions/${txId}/retry`);
             const data = res.data;
-            alert(`✅ Phát lệnh Retry thành công!\n\n• TxHash mới: ${data.newTransactionHash || 'N/A'}\n• Block mới: #${data.newBlockNumber ?? 'N/A'}`);
+            toast.success(`✅ Phát lệnh Retry thành công!\n• TxHash mới: ${data.newTransactionHash || 'N/A'}\n• Block mới: #${data.newBlockNumber ?? 'N/A'}`);
             if (isDetailModalOpen) setIsDetailModalOpen(false);
             fetchData();
         } catch (err: any) {
             console.error('Lỗi khi Retry giao dịch:', err);
-            alert(`❌ Retry thất bại: ${err.response?.data?.message || 'Không thể gửi lại giao dịch lên Blockchain.'}`);
+            toast.error(`❌ Retry thất bại: ${err.response?.data?.message || 'Không thể gửi lại giao dịch lên Blockchain.'}`);
         } finally {
             setRetryingId(null);
         }

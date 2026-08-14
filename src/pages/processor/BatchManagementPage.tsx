@@ -7,7 +7,6 @@ import {
     Plus,
     Search,
     RefreshCw,
-    AlertCircle,
     Calendar,
     UserCheck,
     Package,
@@ -34,6 +33,7 @@ import {
     type UserWorkerDto
 } from '../../services/processorService';
 import { web3Service } from '../../services/web3Service';
+import { toast } from '../../utils/toast';
 import { CONTRACT_CONFIG } from '../../config/constants';
 
 export const BatchManagementPage: React.FC = () => {
@@ -102,7 +102,9 @@ export const BatchManagementPage: React.FC = () => {
 
         } catch (err: any) {
             console.error('Lỗi tải dữ liệu:', err);
-            setError('Không thể tải dữ liệu danh mục từ hệ thống Backend.');
+            const msg = 'Không thể tải dữ liệu danh mục từ hệ thống Backend.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -144,31 +146,45 @@ export const BatchManagementPage: React.FC = () => {
 
         // Validation frontend
         if (!formData.batchCode.trim()) {
-            setFormError('Vui lòng nhập Mã Lô Sản Xuất.');
+            const msg = 'Vui lòng nhập Mã Lô Sản Xuất.';
+            setFormError(msg);
+            toast.error(msg);
             return;
         }
         if (!formData.fruitTypeId) {
-            setFormError('Vui lòng chọn Loại Trái Cây.');
+            const msg = 'Vui lòng chọn Loại Trái Cây.';
+            setFormError(msg);
+            toast.error(msg);
             return;
         }
         if (!formData.productId) {
-            setFormError('Vui lòng chọn Sản Phẩm Thương Mại.');
+            const msg = 'Vui lòng chọn Sản Phẩm Thương Mại.';
+            setFormError(msg);
+            toast.error(msg);
             return;
         }
         if (!formData.farmAreaId) {
-            setFormError('Vui lòng chọn Vùng Trồng.');
+            const msg = 'Vui lòng chọn Vùng Trồng.';
+            setFormError(msg);
+            toast.error(msg);
             return;
         }
         if (formData.expectedQuantity <= 0) {
-            setFormError('Sản lượng dự kiến phải lớn hơn 0.');
+            const msg = 'Sản lượng dự kiến phải lớn hơn 0.';
+            setFormError(msg);
+            toast.error(msg);
             return;
         }
         if (formData.assignedWorkerIds.length === 0) {
-            setFormError('Vui lòng chọn ít nhất 1 Nông dân / Nhân công quản lý lô.');
+            const msg = 'Vui lòng chọn ít nhất 1 Nông dân / Nhân công quản lý lô.';
+            setFormError(msg);
+            toast.error(msg);
             return;
         }
         if (!formData.representativeWorkerId) {
-            setFormError('Vui lòng chỉ định 1 Người Đại Diện Lô.');
+            const msg = 'Vui lòng chỉ định 1 Người Đại Diện Lô.';
+            setFormError(msg);
+            toast.error(msg);
             return;
         }
 
@@ -190,7 +206,9 @@ export const BatchManagementPage: React.FC = () => {
             setIsCreateModalOpen(false);
 
             // Cài đặt thông báo & Mở Modal thông báo thành công
-            setSuccessMessage(`Tạo lô sản xuất '${created.batchCode}' thành công! Thông tin đã được đẩy lên IPFS và ghi nhận giao dịch thành công trên Blockchain.`);
+            const successMsg = `Tạo lô sản xuất '${created.batchCode}' thành công! Thông tin đã được đẩy lên IPFS và ghi nhận giao dịch thành công trên Blockchain.`;
+            setSuccessMessage(successMsg);
+            toast.success(successMsg);
             setIsSuccessModalOpen(true);
 
             // Reset form
@@ -213,6 +231,7 @@ export const BatchManagementPage: React.FC = () => {
             console.error('Lỗi tạo lô:', err);
             const msg = err?.response?.data?.message || err?.message || 'Tạo lô sản xuất thất bại. Vui lòng kiểm tra lại.';
             setFormError(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
@@ -440,14 +459,6 @@ export const BatchManagementPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Error Banner */}
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>⚠️ {error}</span>
-                </div>
-            )}
-
             {/* Bảng Dữ Liệu Lô Sản Xuất */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
                 {/* Thanh Lọc & Tìm Kiếm */}
@@ -530,20 +541,6 @@ export const BatchManagementPage: React.FC = () => {
                 title="Tạo Lô Sản Xuất Mới (Ghi nhận On-Chain)"
             >
                 <form onSubmit={handleCreateBatch} className="space-y-4 text-xs">
-                    {formError && (
-                        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            <span>{formError}</span>
-                        </div>
-                    )}
-
-                    {formSuccess && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-medium flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 shrink-0" />
-                            <span>{formSuccess}</span>
-                        </div>
-                    )}
-
                     {/* Hàng 1: Mã Lô & Sản Lượng */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <AppInput

@@ -26,6 +26,7 @@ import {
     Search,
     SlidersHorizontal
 } from 'lucide-react';
+import { toast } from '../../utils/toast';
 
 export const BlockchainContractsPage: React.FC = () => {
     // Transaction list state từ Backend API thật
@@ -60,7 +61,9 @@ export const BlockchainContractsPage: React.FC = () => {
             setTransactions(data);
         } catch (err: any) {
             console.error('Lỗi khi tải danh sách giao dịch Blockchain:', err);
-            setError(err.response?.data?.message || 'Không thể kết nối Backend API lấy danh sách giao dịch.');
+            const msg = err.response?.data?.message || 'Không thể kết nối Backend API lấy danh sách giao dịch.';
+            setError(msg);
+            toast.error(msg);
             setTransactions([]);
         } finally {
             setLoading(false);
@@ -75,7 +78,9 @@ export const BlockchainContractsPage: React.FC = () => {
     const handleGrantRole = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!walletAddress.trim() || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
-            setRoleFormError('Địa chỉ ví Ethereum không hợp lệ (phải bắt đầu bằng 0x và có độ dài 42 ký tự).');
+            const msg = 'Địa chỉ ví Ethereum không hợp lệ (phải bắt đầu bằng 0x và có độ dài 42 ký tự).';
+            setRoleFormError(msg);
+            toast.warning(msg);
             return;
         }
 
@@ -89,11 +94,14 @@ export const BlockchainContractsPage: React.FC = () => {
                 accountAddress: walletAddress.trim()
             });
             setLastRoleResult(result);
+            toast.success(`Đã cấp quyền ${selectedRole} thành công lên Smart Contract!`);
             setWalletAddress('');
             void fetchTransactions();
         } catch (err: any) {
             console.error('Lỗi cấp quyền On-Chain:', err);
-            setRoleFormError(err.response?.data?.message || 'Không thể phát lệnh Grant Role lên Smart Contract.');
+            const msg = err.response?.data?.message || 'Không thể phát lệnh Grant Role lên Smart Contract.';
+            setRoleFormError(msg);
+            toast.error(msg);
         } finally {
             setIsSubmittingRole(false);
         }
@@ -102,7 +110,9 @@ export const BlockchainContractsPage: React.FC = () => {
     // Gọi API thật để thu hồi quyền On-Chain: POST /api/v1/admin/blockchain/whitelist/revoke-role
     const handleRevokeRole = async () => {
         if (!walletAddress.trim() || !walletAddress.startsWith('0x') || walletAddress.length !== 42) {
-            setRoleFormError('Địa chỉ ví Ethereum không hợp lệ (phải bắt đầu bằng 0x và có độ dài 42 ký tự).');
+            const msg = 'Địa chỉ ví Ethereum không hợp lệ (phải bắt đầu bằng 0x và có độ dài 42 ký tự).';
+            setRoleFormError(msg);
+            toast.warning(msg);
             return;
         }
 
@@ -116,11 +126,14 @@ export const BlockchainContractsPage: React.FC = () => {
                 accountAddress: walletAddress.trim()
             });
             setLastRoleResult(result);
+            toast.success(`Đã thu hồi quyền ${selectedRole} thành công trên Smart Contract!`);
             setWalletAddress('');
             void fetchTransactions();
         } catch (err: any) {
             console.error('Lỗi thu hồi quyền On-Chain:', err);
-            setRoleFormError(err.response?.data?.message || 'Không thể phát lệnh Revoke Role lên Smart Contract.');
+            const msg = err.response?.data?.message || 'Không thể phát lệnh Revoke Role lên Smart Contract.';
+            setRoleFormError(msg);
+            toast.error(msg);
         } finally {
             setIsSubmittingRole(false);
         }
@@ -131,10 +144,10 @@ export const BlockchainContractsPage: React.FC = () => {
         setRetryingId(txId);
         try {
             await adminService.retryTransaction(txId);
-            alert('Đã gửi yêu cầu Retry giao dịch Smart Contract thành công!');
+            toast.success('Đã gửi yêu cầu Retry giao dịch Smart Contract thành công!');
             void fetchTransactions();
         } catch (err: any) {
-            alert(err.response?.data?.message || 'Thao tác Thử lại giao dịch thất bại.');
+            toast.error(err.response?.data?.message || 'Thao tác Thử lại giao dịch thất bại.');
         } finally {
             setRetryingId(null);
         }
@@ -427,14 +440,6 @@ export const BlockchainContractsPage: React.FC = () => {
                     </div>
                 </form>
 
-                {/* THÔNG BÁO LỖI NẾU CÓ */}
-                {roleFormError && (
-                    <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
-                        <span>⚠️ {roleFormError}</span>
-                    </div>
-                )}
-
                 {/* KẾT QUẢ TRẢ VỀ TỪ TRANSACTIONS THẬT LÊN SMART CONTRACT */}
                 {lastRoleResult && (
                     <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2 text-xs">
@@ -532,12 +537,6 @@ export const BlockchainContractsPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-
-                {error && (
-                    <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
-                        ⚠️ {error}
-                    </div>
-                )}
 
                 {/* BẢNG DỮ LIỆU THẬT TỪ CSDL BACKEND */}
                 {loading ? (

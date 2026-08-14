@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X, ArrowUpRight, Truck } from 'lucide-react';
 import type { MaterialItemDto } from '../../../services/processorService';
+import { toast } from '../../../utils/toast';
 
 interface ExportInventoryModalProps {
     isOpen: boolean;
@@ -28,12 +29,12 @@ export const ExportInventoryModal: React.FC<ExportInventoryModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedItemId || quantity <= 0) {
-            alert('Vui lòng chọn vật tư từ Backend và nhập số lượng xuất hợp lệ!');
+            toast.warning('Vui lòng chọn vật tư từ Backend và nhập số lượng xuất hợp lệ!');
             return;
         }
 
         if (selectedItem && quantity > (selectedItem.quantityInStock || 0)) {
-            alert(`Số lượng xuất (${quantity}) vượt quá tồn kho thực tế (${selectedItem.quantityInStock || 0})!`);
+            toast.warning(`Số lượng xuất (${quantity}) vượt quá tồn kho thực tế (${selectedItem.quantityInStock || 0})!`);
             return;
         }
 

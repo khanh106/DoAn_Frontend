@@ -7,7 +7,6 @@ import {
     Plus,
     Search,
     RefreshCw,
-    AlertCircle,
     Download,
     CheckCircle2,
     XCircle,
@@ -30,6 +29,7 @@ import { CreateShipmentModal } from './modals/CreateShipmentModal';
 
 import { GenerateQRCodeModal } from './modals/GenerateQRCodeModal';
 import { AxiosError } from 'axios';
+import { toast } from '../../utils/toast';
 
 export type QRCodeShippingTab = 'SHIPMENT' | 'RETAILER' | 'INSPECTION' | 'QRCODE';
 
@@ -124,7 +124,9 @@ export const QRCodeAndShippingPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi khi tải dữ liệu tab:', errorObj);
-            setErrorMessage(errorObj.response?.data?.message || 'Không thể kết nối với Backend API.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối với Backend API.';
+            setErrorMessage(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -139,14 +141,14 @@ export const QRCodeAndShippingPage: React.FC = () => {
         if (!window.confirm('Xác nhận tiếp nhận lô hàng này tại cửa hàng?')) return;
         try {
             await shippingAndQrService.receiveShipment(shipmentId);
-            alert('✅ Đã xác nhận tiếp nhận vận đơn thành công!');
+            toast.success('✅ Đã xác nhận tiếp nhận vận đơn thành công!');
             await loadTabData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             if (errorObj.response?.status === 403 || errorObj.response?.status === 401) {
-                alert('ℹ️ Chức năng tiếp nhận thuộc quyền của tài khoản Cửa hàng / Siêu thị (Retailer).');
+                toast.info('ℹ️ Chức năng tiếp nhận thuộc quyền của tài khoản Cửa hàng / Siêu thị (Retailer).');
             } else {
-                alert(`❌ Lỗi: ${errorObj.response?.data?.message || 'Không thể tiếp nhận lô hàng.'}`);
+                toast.error(`❌ Lỗi: ${errorObj.response?.data?.message || 'Không thể tiếp nhận lô hàng.'}`);
             }
         }
     };
@@ -156,14 +158,14 @@ export const QRCodeAndShippingPage: React.FC = () => {
         if (!window.confirm('Xác nhận đưa sản phẩm lên kệ trưng bày bán lẻ?')) return;
         try {
             await shippingAndQrService.markReadyForSale(shipmentId);
-            alert('✅ Đã chuyển trạng thái sản phẩm lên kệ bán thành công!');
+            toast.success('✅ Đã chuyển trạng thái sản phẩm lên kệ bán thành công!');
             await loadTabData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             if (errorObj.response?.status === 403 || errorObj.response?.status === 401) {
-                alert('ℹ️ Chức năng chuyển kệ hàng thuộc quyền của tài khoản Cửa hàng / Siêu thị (Retailer).');
+                toast.info('ℹ️ Chức năng chuyển kệ hàng thuộc quyền của tài khoản Cửa hàng / Siêu thị (Retailer).');
             } else {
-                alert(`❌ Lỗi: ${errorObj.response?.data?.message || 'Không thể đưa lên kệ.'}`);
+                toast.error(`❌ Lỗi: ${errorObj.response?.data?.message || 'Không thể đưa lên kệ.'}`);
             }
         }
     };
@@ -408,7 +410,7 @@ export const QRCodeAndShippingPage: React.FC = () => {
                     <button
                         onClick={() => {
                             void navigator.clipboard.writeText(item.qrValue);
-                            alert('📋 Đã sao chép liên kết mã QR!');
+                            toast.success('📋 Đã sao chép liên kết mã QR!');
                         }}
                         className="p-1 hover:bg-slate-100 text-slate-500 rounded-md cursor-pointer"
                         title="Sao chép"
@@ -483,13 +485,6 @@ export const QRCodeAndShippingPage: React.FC = () => {
                     </button>
                 </div>
             </div>
-
-            {errorMessage && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>⚠️ {errorMessage}</span>
-                </div>
-            )}
 
             {/* Sub-Tabs Danh mục (Giống hệt Quản lý Kho) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2 overflow-x-auto gap-3">
@@ -573,6 +568,11 @@ export const QRCodeAndShippingPage: React.FC = () => {
                     batchId={selectedBatchId}
                     batches={batches} // <--- THÊM DÒNG NÀY
                     onClose={() => setShowShipmentModal(false)}
+                    onOpenQrModal={() => {
+                        // Đóng modal tạo đơn vận hiện tại rồi mở modal sinh QR cho cùng lô đang chọn
+                        setShowShipmentModal(false);
+                        setShowQrModal(true);
+                    }}
                     onSuccess={() => {
                         setShowShipmentModal(false);
                         void loadTabData();
@@ -587,6 +587,12 @@ export const QRCodeAndShippingPage: React.FC = () => {
                 <GenerateQRCodeModal
                     batchId={selectedBatchId}
                     onClose={() => setShowQrModal(false)}
+                    onSuccessAndCreateShipment={() => {
+                        // Sau khi sinh QR xong, đóng modal QR rồi mở lại modal tạo đơn vận cho cùng lô
+                        setShowQrModal(false);
+                        setShowShipmentModal(true);
+                        void loadTabData();
+                    }}
                     onSuccess={() => {
                         setShowQrModal(false);
                         void loadTabData();

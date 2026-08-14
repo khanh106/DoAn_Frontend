@@ -35,6 +35,7 @@ import {
     type RetailerQualityRecord
 } from '../../services/retailerService';
 import { type QRCodeInfoDto } from '../../services/shippingAndQrService';
+import { toast } from '../../utils/toast';
 
 export const RetailerQRCodesPage: React.FC = () => {
     // Data States (Thuần dữ liệu thực từ Backend API)
@@ -92,7 +93,9 @@ export const RetailerQRCodesPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi tải dữ liệu Vận đơn Siêu thị:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể kết nối đến Backend API để lấy danh sách vận đơn siêu thị.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối đến Backend API để lấy danh sách vận đơn siêu thị.';
+            setError(msg);
+            toast.error(msg);
             setShipments([]);
         } finally {
             setLoading(false);
@@ -510,27 +513,6 @@ export const RetailerQRCodesPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-            {/* MESSAGES */}
-            {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                        <span className="text-sm font-medium">{error}</span>
-                    </div>
-                    <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-sm">Đóng</button>
-                </div>
-            )}
-
-            {successMessage && (
-                <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-                        <span className="text-sm font-medium">{successMessage}</span>
-                    </div>
-                    <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-green-700 text-sm">Đóng</button>
-                </div>
-            )}
 
             {/* TABS HEADER - CHUẨN PROPS: tabs, activeTabId, onTabChange */}
             <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-200">

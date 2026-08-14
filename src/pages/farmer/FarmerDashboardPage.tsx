@@ -4,6 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { farmerService, type AssignedBatch, type ProcessorWorkerLinkDto } from '../../services/farmerService';
 import { AppButton } from '../../components/ui/AppButton';
 import { AppBadge } from '../../components/ui/AppBadge';
+import { toast } from '../../utils/toast';
 import {
     LayoutDashboard,
     Layers,
@@ -71,7 +72,7 @@ export const FarmerDashboardPage: React.FC = () => {
             await fetchBatches();
         } catch (err) {
             console.error('Lỗi phản hồi lời mời:', err);
-            alert('Có lỗi xảy ra khi gửi phản hồi. Vui lòng thử lại!');
+            toast.error('Có lỗi xảy ra khi gửi phản hồi. Vui lòng thử lại!');
         } finally {
             setRespondingId(null);
         }

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X, PackagePlus } from 'lucide-react';
 import type { MaterialItemDto } from '../../../services/processorService';
+import { toast } from '../../../utils/toast';
 
 interface CreateMaterialModalProps {
     isOpen: boolean;
@@ -31,7 +32,7 @@ export const CreateMaterialModal: React.FC<CreateMaterialModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!code.trim() || !name.trim()) {
-            alert('Vui lòng nhập đầy đủ Mã và Tên!');
+            toast.warning('Vui lòng nhập đầy đủ Mã và Tên!');
             return;
         }
 

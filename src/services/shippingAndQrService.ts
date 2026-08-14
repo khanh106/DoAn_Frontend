@@ -127,6 +127,11 @@ export const shippingAndQrService = {
         return response.data;
     },
 
+    getAllShipmentsByProcessor: async (): Promise<ShipmentHistoryDto[]> => {
+        const response = await apiClient.get<ShipmentHistoryDto[]>('/v1/processor/shipments/all');
+        return response.data;
+    },
+
     getShipmentsBySubBatch: async (subBatchId: string): Promise<ShipmentHistoryDto[]> => {
         const response = await apiClient.get<ShipmentHistoryDto[]>(`/v1/processor/shipments/sub/${subBatchId}/shipments`);
         return response.data;

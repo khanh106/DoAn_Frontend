@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, Upload } from 'lucide-react';
 import { shippingAndQrService } from '../../../services/shippingAndQrService';
+import { toast } from '../../../utils/toast';
 
 interface Props {
     batchId: string;
@@ -21,7 +22,7 @@ export const CreateInspectionModal: React.FC<Props> = ({ batchId, onClose, onSuc
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!file) {
-            alert('⚠️ Vui lòng đính kèm tệp văn bản/chứng nhận kiểm định (PDF hoặc PNG/JPG).');
+            toast.warning('⚠️ Vui lòng đính kèm tệp văn bản/chứng nhận kiểm định (PDF hoặc PNG/JPG).');
             return;
         }
 
@@ -37,10 +38,10 @@ export const CreateInspectionModal: React.FC<Props> = ({ batchId, onClose, onSuc
             formData.append('CertificateFile', file);
 
             await shippingAndQrService.inspectParentBatch(batchId, formData);
-            alert('✅ Đã lưu biên bản kiểm định thành công!');
+            toast.success('✅ Đã lưu biên bản kiểm định thành công!');
             onSuccess();
         } catch (err: any) {
-            alert(`❌ Lỗi kiểm định: ${err.response?.data?.message || err.message}`);
+            toast.error(`❌ Lỗi kiểm định: ${err.response?.data?.message || err.message}`);
         } finally {
             setSubmitting(false);
         }

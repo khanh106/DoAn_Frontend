@@ -21,6 +21,7 @@ import {
     type ProductionProcessDto,
     type ProcessStepDto
 } from '../../services/processorService';
+import { toast } from '../../utils/toast';
 
 // Bảng cấu hình giao diện cho các giai đoạn (BatchStage) chuẩn từ Backend
 const STAGE_CONFIG: Record<string, { label: string; bg: string; text: string; icon: React.ElementType }> = {
@@ -70,7 +71,9 @@ export const ProcessManagementPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi khi tải quy trình từ Backend API:', errorObj);
-            setErrorMessage(errorObj.response?.data?.message || 'Không thể kết nối Backend API lấy danh sách quy trình.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối Backend API lấy danh sách quy trình.';
+            setErrorMessage(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -103,13 +106,13 @@ export const ProcessManagementPage: React.FC = () => {
     // Gửi dữ liệu tạo mới lên Backend API
     const handleSaveProcess = async () => {
         if (!newProcessName.trim()) {
-            alert('⚠️ Vui lòng nhập tên quy trình!');
+            toast.warning('Vui lòng nhập tên quy trình!');
             return;
         }
 
         const validSteps = newSteps.filter((s) => s.stepName.trim() !== '');
         if (validSteps.length === 0) {
-            alert('⚠️ Quy trình phải có ít nhất 1 bước công việc!');
+            toast.warning('Quy trình phải có ít nhất 1 bước công việc!');
             return;
         }
 
@@ -121,14 +124,14 @@ export const ProcessManagementPage: React.FC = () => {
                 steps: validSteps
             });
 
-            alert('✅ Đã tạo mới Quy trình sản xuất thành công trên Backend!');
+            toast.success('Đã tạo mới Quy trình sản xuất thành công trên Backend!');
             setShowCreateModal(false);
             setNewProcessName('');
             setNewProcessDesc('');
             await loadProcessesData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(`❌ Lỗi tạo quy trình: ${errorObj.response?.data?.message || 'Không thể tạo quy trình.'}`);
+            toast.error(`Lỗi tạo quy trình: ${errorObj.response?.data?.message || 'Không thể tạo quy trình.'}`);
         } finally {
             setSubmitting(false);
         }

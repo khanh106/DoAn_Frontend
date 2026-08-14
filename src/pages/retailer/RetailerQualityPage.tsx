@@ -30,6 +30,7 @@ import {
     type RetailerQualityRecord,
 } from '../../services/retailerService';
 import { shippingAndQrService, type InspectionHistoryDto } from '../../services/shippingAndQrService';
+import { toast } from '../../utils/toast';
 
 export const RetailerQualityPage: React.FC = () => {
     // State dữ liệu
@@ -96,7 +97,9 @@ export const RetailerQualityPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi khi tải dữ liệu kiểm tra chất lượng:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể tải danh sách vận đơn siêu thị từ Backend API.');
+            const msg = errorObj.response?.data?.message || 'Không thể tải danh sách vận đơn siêu thị từ Backend API.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -188,7 +191,9 @@ export const RetailerQualityPage: React.FC = () => {
 
         retailerService.saveQualityRecord(record);
         setQaRecords((prev) => ({ ...prev, [selectedShipmentForQa.id]: record }));
-        setSuccessMessage(`✅ Đã lưu Biên bản Kiểm định QA thành công cho lô "${record.batchCode}"!`);
+        const savedMsg = `✅ Đã lưu Biên bản Kiểm định QA thành công cho lô "${record.batchCode}"!`;
+        setSuccessMessage(savedMsg);
+        toast.success(savedMsg);
 
         // Nếu người dùng chọn lưu và kích hoạt hành động hệ thống
         if (andAction === 'RECEIVE' && !selectedShipmentForQa.receivedDate) {
@@ -206,11 +211,15 @@ export const RetailerQualityPage: React.FC = () => {
         setActionLoadingId(shipmentId);
         try {
             await retailerService.receiveShipment(shipmentId);
-            setSuccessMessage('🎉 Đã xác nhận tiếp nhận kho trên Blockchain thành công (RECEIVED_AT_RETAILER)!');
+            const successMsg = '🎉 Đã xác nhận tiếp nhận kho trên Blockchain thành công (RECEIVED_AT_RETAILER)!';
+            setSuccessMessage(successMsg);
+            toast.success(successMsg);
             await fetchData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Tiếp nhận kho thất bại!');
+            const msg = errorObj.response?.data?.message || 'Tiếp nhận kho thất bại!';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setActionLoadingId(null);
         }
@@ -221,11 +230,15 @@ export const RetailerQualityPage: React.FC = () => {
         setActionLoadingId(shipmentId);
         try {
             await retailerService.readyForSale(shipmentId);
-            setSuccessMessage('🎉 Đã phê duyệt và chuyển lô hàng sang trạng thái READY_FOR_SALE thành công!');
+            const successMsg = '🎉 Đã phê duyệt và chuyển lô hàng sang trạng thái READY_FOR_SALE thành công!';
+            setSuccessMessage(successMsg);
+            toast.success(successMsg);
             await fetchData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Chuyển trạng thái bán hàng thất bại!');
+            const msg = errorObj.response?.data?.message || 'Chuyển trạng thái bán hàng thất bại!';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setActionLoadingId(null);
         }
@@ -485,24 +498,6 @@ export const RetailerQualityPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Thông báo Alert */}
-            {error && (
-                <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm font-medium flex items-center justify-between">
-                    <span>⚠️ {error}</span>
-                    <button onClick={() => setError(null)} className="text-xs font-bold underline ml-4 cursor-pointer">
-                        Đóng
-                    </button>
-                </div>
-            )}
-            {successMessage && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-medium flex items-center justify-between">
-                    <span>{successMessage}</span>
-                    <button onClick={() => setSuccessMessage(null)} className="text-xs font-bold underline ml-4 cursor-pointer">
-                        Đóng
-                    </button>
-                </div>
-            )}
-
             {/* KPI Statistics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
@@ -637,8 +632,8 @@ export const RetailerQualityPage: React.FC = () => {
                             <button
                                 onClick={() => setActiveQaTab('SUPERMARKET_CHECK')}
                                 className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeQaTab === 'SUPERMARKET_CHECK'
-                                        ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
-                                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                                    ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
+                                    : 'border-transparent text-slate-500 hover:text-slate-800'
                                     }`}
                             >
                                 <ShieldCheck className="w-4 h-4" />
@@ -647,8 +642,8 @@ export const RetailerQualityPage: React.FC = () => {
                             <button
                                 onClick={() => setActiveQaTab('ORIGIN_CERT')}
                                 className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeQaTab === 'ORIGIN_CERT'
-                                        ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
-                                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                                    ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
+                                    : 'border-transparent text-slate-500 hover:text-slate-800'
                                     }`}
                             >
                                 <Award className="w-4 h-4" />
@@ -705,8 +700,8 @@ export const RetailerQualityPage: React.FC = () => {
                                                 >
                                                     <Star
                                                         className={`w-5 h-5 ${star <= qaForm.freshnessRating
-                                                                ? 'text-amber-400 fill-amber-400'
-                                                                : 'text-slate-300'
+                                                            ? 'text-amber-400 fill-amber-400'
+                                                            : 'text-slate-300'
                                                             }`}
                                                     />
                                                 </button>
@@ -792,8 +787,8 @@ export const RetailerQualityPage: React.FC = () => {
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'PASSED' })}
                                             className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'PASSED'
-                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                                                    : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                                                : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
                                                 }`}
                                         >
                                             <CheckCircle2 className="w-5 h-5" />
@@ -804,8 +799,8 @@ export const RetailerQualityPage: React.FC = () => {
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'QUARANTINE' })}
                                             className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'QUARANTINE'
-                                                    ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-                                                    : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
+                                                ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                                                : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
                                                 }`}
                                         >
                                             <AlertTriangle className="w-5 h-5" />
@@ -816,8 +811,8 @@ export const RetailerQualityPage: React.FC = () => {
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'REJECTED' })}
                                             className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'REJECTED'
-                                                    ? 'bg-rose-600 text-white border-rose-600 shadow-md'
-                                                    : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
+                                                ? 'bg-rose-600 text-white border-rose-600 shadow-md'
+                                                : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
                                                 }`}
                                         >
                                             <XCircle className="w-5 h-5" />

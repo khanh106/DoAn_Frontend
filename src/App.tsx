@@ -52,6 +52,7 @@ import { RetailerLayout } from './layouts/RetailerLayout';
 // Protection
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
+import { ToastContainer } from './components/ToastContainer';
 
 export const App: React.FC = () => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
@@ -62,6 +63,7 @@ export const App: React.FC = () => {
 
   return (
     <BrowserRouter>
+      <ToastContainer />
       <Routes>
         {/* PUBLIC ROUTES */}
         <Route path="/" element={<LandingPage />} />

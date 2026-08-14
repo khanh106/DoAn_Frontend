@@ -47,6 +47,7 @@ import {
     type DistributorDto,
     type SearchRetailerResultDto,
 } from '../../services/processorService';
+import { toast } from '../../utils/toast';
 
 type TabType = 'workers' | 'fruitTypes' | 'products' | 'pesticides' | 'fertilizers' | 'materials' | 'distributors' | 'wallet';
 
@@ -183,7 +184,9 @@ export const CooperativeSettingsPage: React.FC = () => {
     // Kết nối ví MetaMask & Ký xác thực lấy Key tự động
     const handleConnectMetaMask = async () => {
         if (typeof window === 'undefined' || !window.ethereum) {
-            setError('Không tìm thấy tiện ích ví MetaMask trên trình duyệt! Vui lòng cài đặt MetaMask.');
+            const msg = 'Không tìm thấy tiện ích ví MetaMask trên trình duyệt! Vui lòng cài đặt MetaMask.';
+            setError(msg);
+            toast.error(msg);
             return;
         }
         setIsConnectingWallet(true);
@@ -224,11 +227,14 @@ export const CooperativeSettingsPage: React.FC = () => {
 
 
                 setSuccessMsg(`🎉 Kết nối & Ký xác thực MetaMask thành công cho Hợp tác xã! (Ví: ${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)})`);
+                toast.success(`🎉 Kết nối & Ký xác thực MetaMask thành công cho Hợp tác xã! (Ví: ${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)})`);
                 setTimeout(() => setSuccessMsg(null), 5000);
             }
         } catch (err: any) {
             console.error(err);
-            setError(err?.message || 'Thao tác kết nối hoặc ký xác thực với MetaMask bị hủy.');
+            const msg = err?.message || 'Thao tác kết nối hoặc ký xác thực với MetaMask bị hủy.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setIsConnectingWallet(false);
         }
@@ -251,6 +257,7 @@ export const CooperativeSettingsPage: React.FC = () => {
             const msg = 'Vui lòng nhập hoặc kết nối Địa chỉ Ví Hợp tác xã trước khi lưu.';
             setError(msg);
             setWalletMsg({ type: 'error', text: msg });
+            toast.error(msg);
             return;
         }
 
@@ -258,6 +265,7 @@ export const CooperativeSettingsPage: React.FC = () => {
             const msg = 'Vui lòng nhập Khóa riêng (Private Key) của ví Hợp tác xã (64 ký tự Hex).';
             setError(msg);
             setWalletMsg({ type: 'error', text: msg });
+            toast.error(msg);
             return;
         }
 
@@ -270,6 +278,7 @@ export const CooperativeSettingsPage: React.FC = () => {
             const msg = `Khóa Private Key không hợp lệ! Độ dài phải đúng 64 ký tự Hex (32 bytes). Bạn đã nhập ${cleanKey.length}/64 ký tự.`;
             setError(msg);
             setWalletMsg({ type: 'error', text: msg });
+            toast.error(msg);
             return;
         }
 
@@ -283,11 +292,13 @@ export const CooperativeSettingsPage: React.FC = () => {
             const msg = '🎉 Đã lưu & mã hóa Khóa riêng (Private Key) ví Hợp tác xã thành công vào hệ thống!';
             setSuccessMsg(msg);
             setWalletMsg({ type: 'success', text: msg });
+            toast.success(msg);
         } catch (err: any) {
             console.error(err);
             const msg = err?.response?.data?.message || err?.message || 'Không thể lưu thông tin khóa ví. Vui lòng kiểm tra lại.';
             setError(msg);
             setWalletMsg({ type: 'error', text: msg });
+            toast.error(msg);
         } finally {
             setIsSavingWallet(false);
         }
@@ -313,7 +324,9 @@ export const CooperativeSettingsPage: React.FC = () => {
             if (distRes.status === 'fulfilled') setDistributors(distRes.value);
         } catch (err) {
             console.error('Lỗi lấy dữ liệu từ Backend:', err);
-            setError('Không thể kết nối đến Backend API để lấy danh mục.');
+            const msg = 'Không thể kết nối đến Backend API để lấy danh mục.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -331,7 +344,9 @@ export const CooperativeSettingsPage: React.FC = () => {
             setWorkers(data);
         } catch (err) {
             console.error(err);
-            setError('Không tìm thấy thông tin nhân công.');
+            const msg = 'Không tìm thấy thông tin nhân công.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -345,7 +360,9 @@ export const CooperativeSettingsPage: React.FC = () => {
             setSystemRetailers(data);
         } catch (err) {
             console.error(err);
-            setError('Không thể tìm kiếm danh sách siêu thị.');
+            const msg = 'Không thể tìm kiếm danh sách siêu thị.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setSearchingRetailers(false);
         }
@@ -355,7 +372,9 @@ export const CooperativeSettingsPage: React.FC = () => {
         setLinkingRetailerId(retailerId);
         try {
             await processorService.linkRetailer(retailerId);
-            setSuccessMsg('🎉 Liên kết Siêu thị vào danh sách Đối tác Nhà phân phối thành công!');
+            const msg = '🎉 Liên kết Siêu thị vào danh sách Đối tác Nhà phân phối thành công!';
+            setSuccessMsg(msg);
+            toast.success(msg);
             setTimeout(() => setSuccessMsg(null), 4000);
             void loadAllData();
             void handleSearchRetailers();
@@ -363,6 +382,7 @@ export const CooperativeSettingsPage: React.FC = () => {
             console.error(err);
             const msg = err?.response?.data?.message || err?.message || 'Liên kết Siêu thị thất bại.';
             setError(msg);
+            toast.error(msg);
         } finally {
             setLinkingRetailerId(null);
         }
@@ -371,12 +391,16 @@ export const CooperativeSettingsPage: React.FC = () => {
     const handleInviteWorker = async (workerId: string) => {
         try {
             await processorService.sendWorkerInvitation(workerId);
-            setSuccessMsg('Đã gửi lời mời liên kết tới nhân công thành công!');
+            const msg = 'Đã gửi lời mời liên kết tới nhân công thành công!';
+            setSuccessMsg(msg);
+            toast.success(msg);
             setTimeout(() => setSuccessMsg(null), 3000);
             void loadAllData();
         } catch (err) {
             console.error(err);
-            setError('Gửi lời mời liên kết thất bại.');
+            const msg = 'Gửi lời mời liên kết thất bại.';
+            setError(msg);
+            toast.error(msg);
         }
     };
 
@@ -384,7 +408,9 @@ export const CooperativeSettingsPage: React.FC = () => {
     const handleSaveFruitType = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!fruitTypeFormData.name || !fruitTypeFormData.code) {
-            setError('Vui lòng nhập đầy đủ Mã viết tắt và Tên giống cây!');
+            const msg = 'Vui lòng nhập đầy đủ Mã viết tắt và Tên giống cây!';
+            setError(msg);
+            toast.error(msg);
             return;
         }
         try {
@@ -393,14 +419,18 @@ export const CooperativeSettingsPage: React.FC = () => {
                 code: fruitTypeFormData.code.trim().toUpperCase(),
                 description: fruitTypeFormData.description?.trim(),
             });
-            setSuccessMsg('Thêm giống cây trồng mới vào Database thành công!');
+            const msg = 'Thêm giống cây trồng mới vào Database thành công!';
+            setSuccessMsg(msg);
+            toast.success(msg);
             setShowFruitTypeModal(false);
             setFruitTypeFormData({ code: '', name: '', description: '' });
             setTimeout(() => setSuccessMsg(null), 3000);
             void loadAllData();
         } catch (err) {
             console.error(err);
-            setError('Thêm mới giống cây vào Backend thất bại. Mã giống cây có thể đã tồn tại.');
+            const msg = 'Thêm mới giống cây vào Backend thất bại. Mã giống cây có thể đã tồn tại.';
+            setError(msg);
+            toast.error(msg);
         }
     };
 
@@ -408,11 +438,15 @@ export const CooperativeSettingsPage: React.FC = () => {
     const handleSaveProduct = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!productFormData.name) {
-            setError('Vui lòng nhập Tên sản phẩm!');
+            const msg = 'Vui lòng nhập Tên sản phẩm!';
+            setError(msg);
+            toast.error(msg);
             return;
         }
         if (!productFormData.fruitTypeId) {
-            setError('Vui lòng chọn Giống cây trồng nguyên liệu! (Nếu chưa có Giống cây, hãy qua tab "Giống cây" để tạo trước).');
+            const msg = 'Vui lòng chọn Giống cây trồng nguyên liệu! (Nếu chưa có Giống cây, hãy qua tab "Giống cây" để tạo trước).';
+            setError(msg);
+            toast.error(msg);
             return;
         }
         try {
@@ -422,12 +456,14 @@ export const CooperativeSettingsPage: React.FC = () => {
                 shortName: productFormData.shortName?.trim() || nameTrimmed,
                 fruitTypeId: productFormData.fruitTypeId,
                 groupName: productFormData.groupName?.trim() || 'Trái cây tươi đóng gói',
-                productType: 'FRESH', // Bổ sung trường loại sản phẩm mặc định
+                productType: 'FRESH', // B� sung trường loại sản phẩm mặc định
                 variety: productFormData.variety?.trim() || 'Chuẩn',
                 description: productFormData.description?.trim() || '',
             });
 
-            setSuccessMsg('Thêm mới Sản phẩm thương mại thành công!');
+            const msg = 'Thêm mới Sản phẩm thương mại thành công!';
+            setSuccessMsg(msg);
+            toast.success(msg);
             setShowProductModal(false);
             setProductFormData({
                 name: '',
@@ -441,14 +477,18 @@ export const CooperativeSettingsPage: React.FC = () => {
             void loadAllData();
         } catch (err) {
             console.error(err);
-            setError('Không thể tạo sản phẩm mới trên Backend.');
+            const msg = 'Không thể tạo sản phẩm mới trên Backend.';
+            setError(msg);
+            toast.error(msg);
         }
     };
 
     const handleSaveMaterial = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!materialFormData.name || !materialFormData.code) {
-            setError('Vui lòng điền đầy đủ Mã và Tên vật tư!');
+            const msg = 'Vui lòng điền đầy đủ Mã và Tên vật tư!';
+            setError(msg);
+            toast.error(msg);
             return;
         }
         try {
@@ -456,14 +496,18 @@ export const CooperativeSettingsPage: React.FC = () => {
                 ...materialFormData,
                 itemType: materialModalType,
             });
-            setSuccessMsg(`Thêm mới thành công vào Database Backend!`);
+            const msg = `Thêm mới thành công vào Database Backend!`;
+            setSuccessMsg(msg);
+            toast.success(msg);
             setShowMaterialModal(false);
             setMaterialFormData({ code: '', name: '', unit: 'kg', price: 0, dosagePerHa: 0, concentration: '', supplier: '', npkRatio: '', quantityInStock: 0, note: '' });
             setTimeout(() => setSuccessMsg(null), 3000);
             void loadAllData();
         } catch (err) {
             console.error(err);
-            setError('Không thể tạo vật tư mới trong Backend.');
+            const msg = 'Không thể tạo vật tư mới trong Backend.';
+            setError(msg);
+            toast.error(msg);
         }
     };
 
@@ -471,31 +515,41 @@ export const CooperativeSettingsPage: React.FC = () => {
         if (!window.confirm('Bạn có chắc chắn muốn xóa mục này khỏi Cơ sở dữ liệu?')) return;
         try {
             await processorService.deleteMaterial(id);
-            setSuccessMsg('Đã xóa dữ liệu thành công khỏi Backend.');
+            const msg = 'Đã xóa dữ liệu thành công khỏi Backend.';
+            setSuccessMsg(msg);
+            toast.success(msg);
             setTimeout(() => setSuccessMsg(null), 3000);
             void loadAllData();
         } catch (err) {
             console.error(err);
-            setError('Xóa thất bại từ Backend.');
+            const msg = 'Xóa thất bại từ Backend.';
+            setError(msg);
+            toast.error(msg);
         }
     };
 
     const handleSaveDistributor = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!distributorFormData.name || !distributorFormData.code) {
-            setError('Vui lòng nhập đầy đủ Mã và Tên nhà phân phối!');
+            const msg = 'Vui lòng nhập đầy đủ Mã và Tên nhà phân phối!';
+            setError(msg);
+            toast.error(msg);
             return;
         }
         try {
             await processorService.createDistributor(distributorFormData);
-            setSuccessMsg('Lưu thông tin Nhà phân phối mới vào Database thành công!');
+            const msg = 'Lưu thông tin Nhà phân phối mới vào Database thành công!';
+            setSuccessMsg(msg);
+            toast.success(msg);
             setShowDistributorModal(false);
             setDistributorFormData({ code: '', name: '', phone: '', email: '', address: '', taxCode: '' });
             setTimeout(() => setSuccessMsg(null), 3000);
             void loadAllData();
         } catch (err) {
             console.error(err);
-            setError('Lưu Nhà phân phối vào Backend thất bại.');
+            const msg = 'Lưu Nhà phân phối vào Backend thất bại.';
+            setError(msg);
+            toast.error(msg);
         }
     };
 
@@ -503,12 +557,16 @@ export const CooperativeSettingsPage: React.FC = () => {
         if (!window.confirm('Bạn có chắc chắn muốn xóa Nhà phân phối này khỏi Database Backend?')) return;
         try {
             await processorService.deleteDistributor(id);
-            setSuccessMsg('Đã xóa Nhà phân phối thành công.');
+            const msg = 'Đã xóa Nhà phân phối thành công.';
+            setSuccessMsg(msg);
+            toast.success(msg);
             setTimeout(() => setSuccessMsg(null), 3000);
             void loadAllData();
         } catch (err) {
             console.error(err);
-            setError('Xóa Nhà phân phối thất bại.');
+            const msg = 'Xóa Nhà phân phối thất bại.';
+            setError(msg);
+            toast.error(msg);
         }
     };
 
@@ -804,26 +862,6 @@ export const CooperativeSettingsPage: React.FC = () => {
                     <span>Làm mới dữ liệu</span>
                 </button>
             </div>
-
-            {/* Thông báo Lỗi & Thành công */}
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        <span>⚠️ {error}</span>
-                    </div>
-                    <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-            )}
-
-            {successMsg && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                    <span>✅ {successMsg}</span>
-                </div>
-            )}
 
             {/* Thanh Tab Chuyển Đổi Các Trang Con */}
             <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap gap-2 overflow-x-auto">

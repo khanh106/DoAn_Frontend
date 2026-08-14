@@ -16,6 +16,7 @@ import {
     Wallet
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { toast } from '../../utils/toast';
 
 export const ProfilePage: React.FC = () => {
     const { user, updateUser } = useAuthStore();
@@ -54,7 +55,7 @@ export const ProfilePage: React.FC = () => {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                alert('Dung lượng ảnh tối đa cho phép là 5MB!');
+                toast.warning('Dung lượng ảnh tối đa cho phép là 5MB!');
                 return;
             }
             const reader = new FileReader();
@@ -90,24 +91,13 @@ export const ProfilePage: React.FC = () => {
             });
             setIsSaving(false);
             setSavedSuccess(true);
+            toast.success('Cập nhật thông tin tài khoản và ảnh đại diện thành công!');
             setTimeout(() => setSavedSuccess(false), 3000);
         }, 400);
     };
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 pb-12">
-            {/* Thông báo thành công */}
-            {savedSuccess && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl shadow-sm flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
-                        <span className="text-sm font-bold">
-                            Cập nhật thông tin tài khoản và ảnh đại diện thành công!
-                        </span>
-                    </div>
-                </div>
-            )}
-
             {/* Header Card Banner */}
             <div className="relative bg-gradient-to-r from-emerald-800 via-teal-700 to-emerald-900 rounded-3xl p-6 md:p-8 text-white shadow-xl overflow-hidden">
                 <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">

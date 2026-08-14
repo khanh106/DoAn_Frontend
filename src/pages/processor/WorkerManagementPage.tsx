@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Search, UserPlus, RefreshCw, AlertCircle, CheckCircle, Clock, Eye, Wallet, Phone, Mail, Building2 } from 'lucide-react';
+import { Users, Search, UserPlus, RefreshCw, CheckCircle, Clock, Eye, Wallet, Phone, Mail, Building2 } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { AppButton } from '../../components/ui/AppButton';
 import { AppModal } from '../../components/ui/AppModal';
 import { processorService, type SearchWorkerResultDto } from '../../services/processorService';
+import { toast } from '../../utils/toast';
 
 export const WorkerManagementPage: React.FC = () => {
     const [workers, setWorkers] = useState<SearchWorkerResultDto[]>([]);
@@ -25,7 +26,9 @@ export const WorkerManagementPage: React.FC = () => {
             setWorkers(data || []);
         } catch (err) {
             console.error('Lỗi tải danh sách công nhân:', err);
-            setError('Không thể kết nối đến Backend API.');
+            const msg = 'Không thể kết nối đến Backend API.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -44,11 +47,11 @@ export const WorkerManagementPage: React.FC = () => {
         setInvitingId(workerId);
         try {
             await processorService.sendWorkerInvitation(workerId);
-            alert('Đã gửi lời mời liên kết tới công nhân thành công!');
+            toast.success('Đã gửi lời mời liên kết tới công nhân thành công!');
             fetchWorkers(keyword);
         } catch (err) {
             console.error('Lỗi gửi lời mời:', err);
-            alert('Gửi lời mời liên kết thất bại.');
+            toast.error('Gửi lời mời liên kết thất bại.');
         } finally {
             setInvitingId(null);
         }
@@ -132,13 +135,6 @@ export const WorkerManagementPage: React.FC = () => {
                     <span>Làm mới</span>
                 </button>
             </div>
-
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>⚠️ {error}</span>
-                </div>
-            )}
 
             {/* Navigation Tabs */}
             <div className="flex border-b border-slate-200 gap-4">

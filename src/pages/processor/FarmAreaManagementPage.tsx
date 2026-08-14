@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapPin, RefreshCw, AlertCircle, Plus, Edit3, Search, Layers, CheckCircle2, Globe, Building2, Eye, Trash2, Calendar, User, FileText } from 'lucide-react';
+import { MapPin, RefreshCw, AlertCircle, Plus, Edit3, Search, Layers, Globe, Building2, Eye, Trash2, Calendar, User, FileText } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppModal } from '../../components/ui/AppModal';
 import { AppButton } from '../../components/ui/AppButton';
 import { AppInput } from '../../components/ui/AppInput';
 import { processorService, type FarmAreaDto } from '../../services/processorService';
+import { toast } from '../../utils/toast';
 
 interface FarmAreaFormData {
     name: string;
@@ -66,7 +67,9 @@ export const FarmAreaManagementPage: React.FC = () => {
             setFarmAreas(data || []);
         } catch (err) {
             console.error('Lỗi tải vùng trồng:', err);
-            setError('Không thể lấy danh sách vùng trồng từ Backend API.');
+            const msg = 'Không thể lấy danh sách vùng trồng từ Backend API.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -89,7 +92,9 @@ export const FarmAreaManagementPage: React.FC = () => {
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.ownerName || !formData.province || !formData.district || !formData.ward) {
-            setError('Vui lòng điền đầy đủ các thông tin bắt buộc (Tên vùng trồng, Chủ hộ, Tỉnh, Huyện, Xã).');
+            const msg = 'Vui lòng điền đầy đủ các thông tin bắt buộc (Tên vùng trồng, Chủ hộ, T�nh, Huyện, Xã).';
+            setError(msg);
+            toast.error(msg);
             return;
         }
 
@@ -109,12 +114,15 @@ export const FarmAreaManagementPage: React.FC = () => {
             });
 
             setSuccessMsg('Thêm vùng trồng mới thành công!');
+            toast.success('Thêm vùng trồng mới thành công!');
             setIsCreateOpen(false);
             setFormData(initialFormData);
             await fetchFarmAreas();
         } catch (err) {
             console.error('Lỗi tạo vùng trồng:', err);
-            setError('Không thể thêm vùng trồng mới. Vui lòng kiểm tra lại dữ liệu.');
+            const msg = 'Không thể thêm vùng trồng mới. Vui lòng kiểm tra lại dữ liệu.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
@@ -170,13 +178,16 @@ export const FarmAreaManagementPage: React.FC = () => {
             });
 
             setSuccessMsg('Cập nhật vùng trồng thành công!');
+            toast.success('Cập nhật vùng trồng thành công!');
             setIsEditOpen(false);
             setSelectedArea(null);
             setFormData(initialFormData);
             await fetchFarmAreas();
         } catch (err) {
             console.error('Lỗi cập nhật vùng trồng:', err);
-            setError('Không thể cập nhật vùng trồng. Vui lòng thử lại.');
+            const msg = 'Không thể cập nhật vùng trồng. Vui lòng thử lại.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
@@ -196,12 +207,15 @@ export const FarmAreaManagementPage: React.FC = () => {
             }
 
             setSuccessMsg(`Đã xóa vùng trồng "${selectedArea.name}" thành công!`);
+            toast.success(`Đã xóa vùng trồng "${selectedArea.name}" thành công!`);
             setIsDeleteOpen(false);
             setSelectedArea(null);
             await fetchFarmAreas();
         } catch (err) {
             console.error('Lỗi xóa vùng trồng:', err);
-            setError('Không thể xóa vùng trồng. Vui lòng thử lại.');
+            const msg = 'Không thể xóa vùng trồng. Vui lòng thử lại.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
@@ -313,27 +327,6 @@ export const FarmAreaManagementPage: React.FC = () => {
                     </AppButton>
                 </div>
             </div>
-
-            {/* Thông Báo Alert */}
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-semibold flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                    <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">✕</button>
-                </div>
-            )}
-
-            {successMsg && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl text-xs font-semibold flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>{successMsg}</span>
-                    </div>
-                    <button onClick={() => setSuccessMsg(null)} className="text-emerald-500 hover:text-emerald-700">✕</button>
-                </div>
-            )}
 
             {/* Thẻ Thống Kê Nhanh */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

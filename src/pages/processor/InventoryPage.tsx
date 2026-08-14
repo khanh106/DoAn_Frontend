@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, ArrowUpRight, History, Search, RefreshCw, AlertCircle, Eye, Edit, Trash2, PackagePlus } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Plus, ArrowUpRight, History, Search, RefreshCw, AlertCircle, Eye, Edit, Trash2, PackagePlus, Package, Calendar } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
-import { processorService, type MaterialItemDto, type InventoryLogDto } from '../../services/processorService';
+import { processorService, type MaterialItemDto, type InventoryLogDto, type BatchDto } from '../../services/processorService';
+import { shippingAndQrService, type ShipmentHistoryDto } from '../../services/shippingAndQrService';
 import { ImportInventoryModal } from './modals/ImportInventoryModal';
 import { ExportInventoryModal } from './modals/ExportInventoryModal';
 import { InventoryLogModal } from './modals/InventoryLogModal';
@@ -10,8 +11,22 @@ import { CreateMaterialModal } from './modals/CreateMaterialModal';
 import { EditMaterialModal } from './modals/EditMaterialModal';
 import { MaterialDetailModal } from './modals/MaterialDetailModal';
 import { AxiosError } from 'axios';
+import { toast } from '../../utils/toast';
 
 export type InventoryTab = 'PRODUCT' | 'PESTICIDE' | 'FERTILIZER' | 'MATERIAL' | 'EQUIPMENT';
+
+interface PackagedBatchItem {
+    id: string;
+    batchCode: string;
+    productName: string;
+    productId: string;
+    fruitTypeName: string;
+    farmAreaName: string;
+    expectedQuantity: number;
+    updatedAt?: string;
+    createdAt: string;
+    currentStage: string;
+}
 
 export const InventoryPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<InventoryTab>('PRODUCT');
@@ -20,6 +35,11 @@ export const InventoryPage: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
+
+    // Dữ liệu lô hàng đã đóng gói trong kho (cho tab PRODUCT)
+    const [packagedBatches, setPackagedBatches] = useState<PackagedBatchItem[]>([]);
+    const [shippedBatchIds, setShippedBatchIds] = useState<Set<string>>(new Set());
+    const [packagedLoading, setPackagedLoading] = useState<boolean>(false);
 
     // Modals
     const [showImportModal, setShowImportModal] = useState<boolean>(false);
@@ -62,15 +82,62 @@ export const InventoryPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi khi tải kho từ Backend API:', errorObj);
-            setErrorMessage(errorObj.response?.data?.message || 'Không thể kết nối với Backend API.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối với Backend API.';
+            setErrorMessage(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
     }, []);
 
+    // Tải danh sách lô hàng đã đóng gói (PACKAGED) mà CHƯA có vận đơn nào
+    const loadPackagedBatches = useCallback(async () => {
+        setPackagedLoading(true);
+        try {
+            // Gọi song song: danh sách tất cả batch + tất cả vận đơn của processor
+            const [batchesRes, shipmentsRes] = await Promise.allSettled([
+                processorService.getBatches(),
+                shippingAndQrService.getAllShipmentsByProcessor(),
+            ]);
+
+            const allBatches: BatchDto[] = batchesRes.status === 'fulfilled' ? batchesRes.value : [];
+            const allShipments: ShipmentHistoryDto[] = shipmentsRes.status === 'fulfilled' ? shipmentsRes.value : [];
+
+            // Tập hợp các batchId đã được vận chuyển (Parent hoặc SubBatch)
+            const shippedIds = new Set<string>();
+            allShipments.forEach((s) => {
+                if (s.batchId) shippedIds.add(s.batchId);
+            });
+            setShippedBatchIds(shippedIds);
+
+            // Chỉ giữ lại các lô ở trạng thái PACKAGED và chưa có vận đơn nào
+            const packagedOnly: PackagedBatchItem[] = allBatches
+                .filter((b) => b.currentStage === 'PACKAGED' && !shippedIds.has(b.id))
+                .map((b) => ({
+                    id: b.id,
+                    batchCode: b.batchCode,
+                    productName: b.productName,
+                    productId: b.productId,
+                    fruitTypeName: b.fruitTypeName,
+                    farmAreaName: b.farmAreaName,
+                    expectedQuantity: b.expectedQuantity,
+                    updatedAt: b.updatedAt,
+                    createdAt: b.createdAt,
+                    currentStage: b.currentStage,
+                }));
+
+            setPackagedBatches(packagedOnly);
+        } catch (err) {
+            console.error('Lỗi khi tải danh sách lô đã đóng gói:', err);
+        } finally {
+            setPackagedLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         void loadInventoryData();
-    }, [loadInventoryData]);
+        void loadPackagedBatches();
+    }, [loadInventoryData, loadPackagedBatches]);
 
     // Lọc theo Tab & Từ khóa tìm kiếm
     const filteredItems = items.filter((item) => {
@@ -81,15 +148,28 @@ export const InventoryPage: React.FC = () => {
         return matchesTab && matchesSearch;
     });
 
+    // Lọc lô hàng đã đóng gói theo từ khóa tìm kiếm (chỉ áp dụng khi tab PRODUCT)
+    const filteredPackagedBatches = useMemo(() => {
+        if (activeTab !== 'PRODUCT') return [];
+        const query = searchTerm.toLowerCase().trim();
+        if (!query) return packagedBatches;
+        return packagedBatches.filter((b) =>
+            b.batchCode.toLowerCase().includes(query) ||
+            b.productName.toLowerCase().includes(query) ||
+            b.fruitTypeName.toLowerCase().includes(query) ||
+            b.farmAreaName.toLowerCase().includes(query)
+        );
+    }, [activeTab, packagedBatches, searchTerm]);
+
     // Thêm mới vật tư/sản phẩm vào kho
     const handleCreateMaterial = async (data: Partial<MaterialItemDto>) => {
         try {
             await processorService.createMaterial(data);
-            alert('✅ Đã thêm mới danh mục kho thành công!');
+            toast.success('Đã thêm mới danh mục kho thành công!');
             await loadInventoryData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(`❌ Lỗi tạo mới: ${errorObj.response?.data?.message || 'Không thể tạo mới.'}`);
+            toast.error(`Lỗi tạo mới: ${errorObj.response?.data?.message || 'Không thể tạo mới.'}`);
         }
     };
 
@@ -97,11 +177,11 @@ export const InventoryPage: React.FC = () => {
     const handleEditMaterial = async (id: string, data: Partial<MaterialItemDto>) => {
         try {
             await processorService.updateMaterial(id, data);
-            alert('✅ Đã cập nhật thông tin kho thành công!');
+            toast.success('Đã cập nhật thông tin kho thành công!');
             await loadInventoryData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(`❌ Lỗi cập nhật: ${errorObj.response?.data?.message || 'Không thể cập nhật.'}`);
+            toast.error(`Lỗi cập nhật: ${errorObj.response?.data?.message || 'Không thể cập nhật.'}`);
         }
     };
 
@@ -110,11 +190,11 @@ export const InventoryPage: React.FC = () => {
         if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA "${item.name}" (Mã: ${item.code}) khỏi kho?`)) {
             try {
                 await processorService.deleteMaterial(item.id);
-                alert('✅ Đã xóa thành công khỏi Database!');
+                toast.success('Đã xóa thành công khỏi Database!');
                 await loadInventoryData();
             } catch (err) {
                 const errorObj = err as AxiosError<{ message?: string }>;
-                alert(`❌ Lỗi xóa: ${errorObj.response?.data?.message || 'Không thể xóa.'}`);
+                toast.error(`Lỗi xóa: ${errorObj.response?.data?.message || 'Không thể xóa.'}`);
             }
         }
     };
@@ -128,11 +208,11 @@ export const InventoryPage: React.FC = () => {
                 quantity,
                 note,
             });
-            alert(`✅ Đã nhập kho thành công +${quantity} đơn vị!`);
+            toast.success(`Đã nhập kho thành công +${quantity} đơn vị!`);
             await loadInventoryData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(`❌ Lỗi nhập kho: ${errorObj.response?.data?.message || 'Không thể ghi nhận giao dịch.'}`);
+            toast.error(`Lỗi nhập kho: ${errorObj.response?.data?.message || 'Không thể ghi nhận giao dịch.'}`);
         }
     };
 
@@ -145,11 +225,11 @@ export const InventoryPage: React.FC = () => {
                 quantity,
                 note,
             });
-            alert(`✅ Đã xuất kho thành công ${quantity} đơn vị!`);
+            toast.success(`Đã xuất kho thành công ${quantity} đơn vị!`);
             await loadInventoryData();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            alert(`❌ Lỗi xuất kho: ${errorObj.response?.data?.message || 'Không thể xuất kho.'}`);
+            toast.error(`Lỗi xuất kho: ${errorObj.response?.data?.message || 'Không thể xuất kho.'}`);
         }
     };
 
@@ -236,6 +316,72 @@ export const InventoryPage: React.FC = () => {
         { key: 'EQUIPMENT', label: 'Thiết bị' },
     ];
 
+    // Cột bảng cho lô hàng đã đóng gói (hiển thị trong tab PRODUCT)
+    const packagedBatchColumns: Column<PackagedBatchItem>[] = [
+        {
+            header: 'Mã lô hàng',
+            key: 'batchCode',
+            render: (item) => (
+                <span className="font-mono font-bold text-indigo-700 text-xs">
+                    {item.batchCode}
+                </span>
+            ),
+        },
+        {
+            header: 'Sản phẩm',
+            key: 'productName',
+            render: (item) => (
+                <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                        <div className="font-bold text-slate-900">{item.productName}</div>
+                        <div className="text-xs text-slate-500">Loại: {item.fruitTypeName}</div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Vùng sản xuất',
+            key: 'farmAreaName',
+            render: (item) => (
+                <span className="text-xs text-slate-700 font-medium">{item.farmAreaName}</span>
+            ),
+        },
+        {
+            header: 'Sản lượng',
+            key: 'expectedQuantity',
+            align: 'center',
+            render: (item) => (
+                <span className="font-extrabold text-emerald-700 text-sm">
+                    {item.expectedQuantity?.toLocaleString('vi-VN') ?? 0}
+                </span>
+            ),
+        },
+        {
+            header: 'Ngày đóng gói',
+            key: 'updatedAt',
+            render: (item) => (
+                <span className="text-xs text-slate-600 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    {item.updatedAt
+                        ? new Date(item.updatedAt).toLocaleDateString('vi-VN')
+                        : new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                </span>
+            ),
+        },
+        {
+            header: 'Trạng thái kho',
+            key: 'status',
+            align: 'center',
+            render: () => (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 font-bold rounded-full text-xs">
+                    <Package className="w-3.5 h-3.5" />
+                    ĐÃ ĐÓNG GÓI - CHỜ XUẤT
+                </span>
+            ),
+        },
+    ];
+
     return (
         <div className="space-y-5">
             {/* Header & Nút Thao Tác */}
@@ -279,12 +425,15 @@ export const InventoryPage: React.FC = () => {
                     </button>
 
                     <button
-                        onClick={loadInventoryData}
-                        disabled={loading}
+                        onClick={() => {
+                            void loadInventoryData();
+                            void loadPackagedBatches();
+                        }}
+                        disabled={loading || packagedLoading}
                         className="p-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl cursor-pointer"
                         title="Tải lại dữ liệu Backend"
                     >
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-4 h-4 ${(loading || packagedLoading) ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
             </div>
@@ -332,11 +481,32 @@ export const InventoryPage: React.FC = () => {
             <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-4">
                 <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Danh sách {tabLabels.find((t) => t.key === activeTab)?.label} ({filteredItems.length})
+                        {activeTab === 'PRODUCT' ? (
+                            <>
+                                Lô sản phẩm đã đóng gói còn trong kho ({filteredPackagedBatches.length})
+                                {shippedBatchIds.size > 0 && (
+                                    <span className="ml-2 text-[10px] font-medium text-slate-400 normal-case">
+                                        · {shippedBatchIds.size} lô đã được xuất vận chuyển (không còn trong kho)
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            <>Danh sách {tabLabels.find((t) => t.key === activeTab)?.label} ({filteredItems.length})</>
+                        )}
                     </span>
                 </div>
 
-                {loading ? (
+                {activeTab === 'PRODUCT' ? (
+                    packagedLoading ? (
+                        <div className="py-12 text-center text-slate-500 text-sm">Đang tải danh sách lô hàng đã đóng gói...</div>
+                    ) : filteredPackagedBatches.length > 0 ? (
+                        <AppTable columns={packagedBatchColumns} data={filteredPackagedBatches} showSTT={true} />
+                    ) : (
+                        <div className="py-12 text-center text-slate-400 italic text-sm">
+                            Hiện không có lô sản phẩm đã đóng gói nào còn trong kho. Các lô đã được vận chuyển cho cửa hàng sẽ không hiển thị tại đây.
+                        </div>
+                    )
+                ) : loading ? (
                     <div className="py-12 text-center text-slate-500 text-sm">Đang tải dữ liệu kho từ Backend API...</div>
                 ) : filteredItems.length > 0 ? (
                     <AppTable columns={columns} data={filteredItems} showSTT={true} />

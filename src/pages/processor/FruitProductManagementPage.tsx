@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Package, RefreshCw, AlertCircle } from 'lucide-react';
+import { Package, RefreshCw } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { processorService, type FruitTypeDto, type ProductDto } from '../../services/processorService';
+import { toast } from '../../utils/toast';
 
 export const FruitProductManagementPage: React.FC = () => {
     const [fruitTypes, setFruitTypes] = useState<FruitTypeDto[]>([]);
@@ -28,7 +29,9 @@ export const FruitProductManagementPage: React.FC = () => {
             }
         } catch (err) {
             console.error('Lỗi tải dữ liệu danh bản:', err);
-            setError('Không thể lấy dữ liệu từ Backend API.');
+            const msg = 'Không thể lấy dữ liệu từ Backend API.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -77,13 +80,6 @@ export const FruitProductManagementPage: React.FC = () => {
                     <span>Làm mới</span>
                 </button>
             </div>
-
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>⚠️ {error}</span>
-                </div>
-            )}
 
             {/* Bảng 1: Danh sách loại hoa quả */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">

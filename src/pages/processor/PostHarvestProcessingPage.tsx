@@ -9,8 +9,6 @@ import {
     GitFork,
     FileCheck2,
     Box,
-    CheckCircle,
-    AlertCircle,
     Plus,
     Trash2,
     RefreshCw,
@@ -19,6 +17,7 @@ import { AppButton } from '../../components/ui/AppButton';
 import { AppInput } from '../../components/ui/AppInput';
 import { AppSelect } from '../../components/ui/AppSelect';
 import { processorService, postHarvestService, type BatchDto } from '../../services/processorService';
+import { toast } from '../../utils/toast';
 
 export const PostHarvestProcessingPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'RECEIVE' | 'PROCESS' | 'SORT' | 'INSPECT' | 'PACKAGE'>('RECEIVE');
@@ -94,7 +93,9 @@ export const PostHarvestProcessingPage: React.FC = () => {
                 setSelectedBatchId(data[0].id);
             }
         } catch (err: any) {
-            setMessage({ type: 'error', text: 'Không thể tải danh sách Lô sản xuất.' });
+            const msg = 'Không thể tải danh sách Lô sản xuất.';
+            setMessage({ type: 'error', text: msg });
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -142,15 +143,24 @@ export const PostHarvestProcessingPage: React.FC = () => {
     // Handlers
     const handleReceive = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedBatchId) return setMessage({ type: 'error', text: 'Vui lòng chọn Lô sản xuất.' });
+        if (!selectedBatchId) {
+            const msg = 'Vui lòng chọn Lô sản xuất.';
+            setMessage({ type: 'error', text: msg });
+            toast.error(msg);
+            return;
+        }
         setSubmittingOperation('receive', true); // Kích hoạt trạng thái tải toàn cục
         setMessage(null);
         try {
             await postHarvestService.receiveBatch(selectedBatchId, receiveForm);
-            setMessage({ type: 'success', text: 'Xác nhận tiếp nhận lô sản xuất thành công! (receiveBatch)' });
+            const msg = 'Xác nhận tiếp nhận lô sản xuất thành công! (receiveBatch)';
+            setMessage({ type: 'success', text: msg });
+            toast.success(msg);
             loadBatches();
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi gọi receiveBatch.' });
+            const errMsg = err.response?.data?.message || 'L�i khi gọi receiveBatch.';
+            setMessage({ type: 'error', text: errMsg });
+            toast.error(errMsg);
         } finally {
             setSubmittingOperation('receive', false); // Tắt trạng thái tải toàn cục
         }
@@ -158,7 +168,12 @@ export const PostHarvestProcessingPage: React.FC = () => {
 
     const handleProcess = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedBatchId) return setMessage({ type: 'error', text: 'Vui lòng chọn Lô sản xuất.' });
+        if (!selectedBatchId) {
+            const msg = 'Vui lòng chọn Lô sản xuất.';
+            setMessage({ type: 'error', text: msg });
+            toast.error(msg);
+            return;
+        }
         setSubmittingOperation('process', true);
         setMessage(null);
         try {
@@ -170,10 +185,14 @@ export const PostHarvestProcessingPage: React.FC = () => {
             processImages.forEach((img) => formData.append('Images', img));
 
             await postHarvestService.processBatch(selectedBatchId, formData);
-            setMessage({ type: 'success', text: 'Ghi nhận sơ chế lô thành công! (processBatch)' });
+            const msg = 'Ghi nhận sơ chế lô thành công! (processBatch)';
+            setMessage({ type: 'success', text: msg });
+            toast.success(msg);
             loadBatches();
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi gọi processBatch.' });
+            const errMsg = err.response?.data?.message || 'Lỗi khi gọi processBatch.';
+            setMessage({ type: 'error', text: errMsg });
+            toast.error(errMsg);
         } finally {
             setSubmittingOperation('process', false);
         }
@@ -181,7 +200,12 @@ export const PostHarvestProcessingPage: React.FC = () => {
 
     const handleSort = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedBatchId) return setMessage({ type: 'error', text: 'Vui lòng chọn Lô sản xuất.' });
+        if (!selectedBatchId) {
+            const msg = 'Vui lòng chọn Lô sản xuất.';
+            setMessage({ type: 'error', text: msg });
+            toast.error(msg);
+            return;
+        }
         setSubmittingOperation('sort', true);
         setMessage(null);
         try {
@@ -190,16 +214,22 @@ export const PostHarvestProcessingPage: React.FC = () => {
                     classificationNote: classifyNote,
                     gradeDetails: gradeDetails,
                 });
-                setMessage({ type: 'success', text: 'Phân loại không tách lô thành công! (classifyOnlyBatch)' });
+                const msg = 'Phân loại không tách lô thành công! (classifyOnlyBatch)';
+                setMessage({ type: 'success', text: msg });
+                toast.success(msg);
             } else {
                 await postHarvestService.splitBatch(selectedBatchId, {
                     subBatches: subBatches,
                 });
-                setMessage({ type: 'success', text: 'Phân loại & tách lô con thành công! (splitBatch)' });
+                const msg = 'Phân loại & tách lô con thành công! (splitBatch)';
+                setMessage({ type: 'success', text: msg });
+                toast.success(msg);
             }
             loadBatches();
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi phân loại/tách lô.' });
+            const errMsg = err.response?.data?.message || 'Lỗi khi phân loại/tách lô.';
+            setMessage({ type: 'error', text: errMsg });
+            toast.error(errMsg);
         } finally {
             setSubmittingOperation('sort', false);
         }
@@ -222,15 +252,21 @@ export const PostHarvestProcessingPage: React.FC = () => {
             if (inspectTarget === 'PARENT') {
                 if (!selectedBatchId) throw new Error('Vui lòng chọn Lô gốc (Parent Batch).');
                 await postHarvestService.inspectParent(selectedBatchId, formData);
-                setMessage({ type: 'success', text: 'Kiểm định Lô gốc thành công! (inspectParent)' });
+                const msg = 'Kiểm định Lô gốc thành công! (inspectParent)';
+                setMessage({ type: 'success', text: msg });
+                toast.success(msg);
             } else {
                 if (!subBatchIdInput) throw new Error('Vui lòng nhập SubBatchId (Mã định danh Lô con).');
                 await postHarvestService.inspectSub(subBatchIdInput, formData);
-                setMessage({ type: 'success', text: 'Kiểm định Lô con thành công! (inspectSub)' });
+                const msg = 'Kiểm định Lô con thành công! (inspectSub)';
+                setMessage({ type: 'success', text: msg });
+                toast.success(msg);
             }
             loadBatches();
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Lỗi khi kiểm định.' });
+            const errMsg = err.response?.data?.message || err.message || 'Lỗi khi kiểm định.';
+            setMessage({ type: 'error', text: errMsg });
+            toast.error(errMsg);
         } finally {
             setSubmittingOperation('inspect', false);
         }
@@ -248,15 +284,21 @@ export const PostHarvestProcessingPage: React.FC = () => {
             if (packageTarget === 'PARENT') {
                 if (!selectedBatchId) throw new Error('Vui lòng chọn Lô gốc (Parent Batch).');
                 await postHarvestService.packageParent(selectedBatchId, formData);
-                setMessage({ type: 'success', text: 'Đóng gói thương mại Lô gốc thành công! (packageParent)' });
+                const msg = 'Đóng gói thương mại Lô gốc thành công! (packageParent)';
+                setMessage({ type: 'success', text: msg });
+                toast.success(msg);
             } else {
                 if (!subBatchIdInput) throw new Error('Vui lòng nhập SubBatchId.');
                 await postHarvestService.packageSub(subBatchIdInput, formData);
-                setMessage({ type: 'success', text: 'Đóng gói thương mại Lô con thành công! (packageSub)' });
+                const msg = 'Đóng gói thương mại Lô con thành công! (packageSub)';
+                setMessage({ type: 'success', text: msg });
+                toast.success(msg);
             }
             loadBatches();
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Lỗi khi đóng gói.' });
+            const errMsg = err.response?.data?.message || err.message || 'Lỗi khi đóng gói.';
+            setMessage({ type: 'error', text: errMsg });
+            toast.error(errMsg);
         } finally {
             setSubmittingOperation('package', false);
         }
@@ -292,17 +334,6 @@ export const PostHarvestProcessingPage: React.FC = () => {
                     </button>
                 </div>
             </div>
-
-            {/* Thông báo Alert */}
-            {message && (
-                <div
-                    className={`p-4 rounded-xl flex items-center gap-3 text-xs font-bold ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-                        }`}
-                >
-                    {message.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-                    <span>{message.text}</span>
-                </div>
-            )}
 
             {/* Chọn Lô Mục Tiêu */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">

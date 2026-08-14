@@ -27,6 +27,7 @@ import { LockUserModal } from './modals/LockUserModal';
 import { BlockchainWhitelistModal } from './modals/BlockchainWhitelistModal';
 import { ChangeRoleModal } from './modals/ChangeRoleModal';
 import { UserDetailModal } from './modals/UserDetailModal';
+import { toast } from '../../utils/toast';
 export interface UserAccountResponse {
     id: string;
     fullName: string;
@@ -76,7 +77,9 @@ export const AccountManagementPage: React.FC = () => {
             setUsers(response.data);
         } catch (err: any) {
             console.error('Lỗi kết nối Backend API:', err);
-            setError(err.response?.data?.message || 'Không thể lấy danh sách người dùng từ Backend API.');
+            const msg = err.response?.data?.message || 'Không thể lấy danh sách người dùng từ Backend API.';
+            setError(msg);
+            toast.error(msg);
             setUsers([]);
         } finally {
             setLoading(false);
@@ -129,7 +132,7 @@ export const AccountManagementPage: React.FC = () => {
     const handleBatchApprove = async () => {
         const pendingUsers = users.filter((u) => u.status === 'PENDING');
         if (pendingUsers.length === 0) {
-            alert('Không có tài khoản nào đang chờ duyệt!');
+            toast.warning('Không có tài khoản nào đang chờ duyệt!');
             return;
         }
         if (!window.confirm(`Bạn có chắc chắn muốn duyệt nhanh ${pendingUsers.length} tài khoản đang chờ duyệt?`)) {
@@ -140,10 +143,10 @@ export const AccountManagementPage: React.FC = () => {
             await Promise.all(
                 pendingUsers.map((u) => apiClient.put(`/v1/users/${u.id}/approve`, { action: 'APPROVE' }))
             );
-            alert(`Đã duyệt nhanh thành công ${pendingUsers.length} tài khoản!`);
+            toast.success(`Đã duyệt nhanh thành công ${pendingUsers.length} tài khoản!`);
             fetchUsers();
         } catch (err: any) {
-            alert(err.response?.data?.message || 'Có lỗi xảy ra khi duyệt nhanh danh sách tài khoản.');
+            toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi duyệt nhanh danh sách tài khoản.');
             fetchUsers();
         } finally {
             setLoading(false);
@@ -162,7 +165,7 @@ export const AccountManagementPage: React.FC = () => {
     // Hàm Xuất danh sách tài khoản ra file CSV (Chuẩn UTF-8 mở đẹp trên Excel)
     const handleExportCSV = () => {
         if (filteredUsers.length === 0) {
-            alert('Không có dữ liệu tài khoản nào để xuất file!');
+            toast.warning('Không có dữ liệu tài khoản nào để xuất file!');
             return;
         }
 
@@ -453,12 +456,6 @@ export const AccountManagementPage: React.FC = () => {
                     </select>
                 </div>
             </div>
-
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
-                    ⚠️ {error}
-                </div>
-            )}
 
             {loading ? (
                 <div className="p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 font-medium text-xs">

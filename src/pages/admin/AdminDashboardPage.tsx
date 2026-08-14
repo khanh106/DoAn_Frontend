@@ -21,6 +21,7 @@ import {
 import { AppButton } from '../../components/ui/AppButton';
 import { AppBadge } from '../../components/ui/AppBadge';
 import { adminService, type DashboardStatsDto, type BlockchainTransactionDto } from '../../services/adminService';
+import { toast } from '../../utils/toast';
 
 export const AdminDashboardPage: React.FC = () => {
     const navigate = useNavigate();
@@ -41,7 +42,9 @@ export const AdminDashboardPage: React.FC = () => {
             setStats(statsData);
         } catch (err: any) {
             console.error('Lỗi khi tải Thống kê Admin:', err);
-            setError(err.response?.data?.message || 'Không thể kết nối lấy dữ liệu thống kê từ Backend.');
+            const msg = err.response?.data?.message || 'Không thể kết nối lấy dữ liệu thống kê từ Backend.';
+            setError(msg);
+            toast.error(msg);
         }
         // 2. Tải danh sách giao dịch gần đây
         try {
@@ -64,7 +67,9 @@ export const AdminDashboardPage: React.FC = () => {
             setLastUpdated(new Date().toLocaleTimeString('vi-VN'));
         } catch (err: any) {
             console.error('Lỗi khi tải dữ liệu Admin Dashboard:', err);
-            setError(err.response?.data?.message || 'Không thể kết nối với máy chủ Backend API.');
+            const msg = err.response?.data?.message || 'Không thể kết nối với máy chủ Backend API.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -80,7 +85,8 @@ export const AdminDashboardPage: React.FC = () => {
             await adminService.retryTransaction(txId);
             await fetchDashboardData();
         } catch (err: any) {
-            alert(err.response?.data?.message || 'Thao tác Retry giao dịch thất bại!');
+            console.error('Lỗi khi Retry giao dịch:', err);
+            toast.error(err.response?.data?.message || 'Thao tác Retry giao dịch thất bại!');
         } finally {
             setRetryingId(null);
         }

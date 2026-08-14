@@ -25,6 +25,7 @@ import { AppTabs, type TabItem } from '../../components/ui/AppTabs';
 import { AppModal } from '../../components/ui/AppModal';
 import { AppInput } from '../../components/ui/AppInput';
 import { retailerService, type ShipmentHistoryDto } from '../../services/retailerService';
+import { toast } from '../../utils/toast';
 
 export const ReceiveShipmentPage: React.FC = () => {
     const [shipments, setShipments] = useState<ShipmentHistoryDto[]>([]);
@@ -53,7 +54,9 @@ export const ReceiveShipmentPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi tải danh sách vận đơn Siêu thị:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể kết nối Backend API để tải vận đơn Siêu thị.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối Backend API để tải vận đơn Siêu thị.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -71,12 +74,16 @@ export const ReceiveShipmentPage: React.FC = () => {
         setSuccessMessage(null);
         try {
             await retailerService.receiveShipment(receivingShipment.id);
-            setSuccessMessage(`✅ Đã tiếp nhận vận đơn "${receivingShipment.shippingCode}" thành công! Trạng thái chuyển sang RECEIVED_AT_RETAILER trên Blockchain.`);
+            const successMsg = `✅ Đã tiếp nhận vận đơn "${receivingShipment.shippingCode}" thành công! Trạng thái chuyển sang RECEIVED_AT_RETAILER trên Blockchain.`;
+            setSuccessMessage(successMsg);
+            toast.success(successMsg);
             setReceivingShipment(null);
             await fetchShipments();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Tiếp nhận vận đơn thất bại! Vui lòng kiểm tra lại.');
+            const msg = errorObj.response?.data?.message || 'Tiếp nhận vận đơn thất bại! Vui lòng kiểm tra lại.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setActionLoadingId(null);
         }
@@ -90,12 +97,16 @@ export const ReceiveShipmentPage: React.FC = () => {
         setSuccessMessage(null);
         try {
             await retailerService.readyForSale(readyingShipment.id);
-            setSuccessMessage(`🎉 Đã chuyển lô sản phẩm "${readyingShipment.batchCode || readyingShipment.subBatchCode}" sang trạng thái READY_FOR_SALE! Người tiêu dùng có thể quét QR để truy xuất đầy đủ.`);
+            const successMsg = `🎉 Đã chuyển lô sản phẩm "${readyingShipment.batchCode || readyingShipment.subBatchCode}" sang trạng thái READY_FOR_SALE! Người tiêu dùng có thể quét QR để truy xuất đầy đủ.`;
+            setSuccessMessage(successMsg);
+            toast.success(successMsg);
             setReadyingShipment(null);
             await fetchShipments();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Chuyển trạng thái sẵn sàng bán thất bại!');
+            const msg = errorObj.response?.data?.message || 'Chuyển trạng thái sẵn sàng bán thất bại!';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setActionLoadingId(null);
         }
@@ -314,24 +325,6 @@ export const ReceiveShipmentPage: React.FC = () => {
                     </AppButton>
                 </div>
             </div>
-
-            {/* Alert Messages */}
-            {error && (
-                <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm font-medium flex items-center justify-between">
-                    <span>⚠️ {error}</span>
-                    <button onClick={() => setError(null)} className="text-xs font-bold underline ml-4 cursor-pointer">
-                        Đóng
-                    </button>
-                </div>
-            )}
-            {successMessage && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-medium flex items-center justify-between">
-                    <span>{successMessage}</span>
-                    <button onClick={() => setSuccessMessage(null)} className="text-xs font-bold underline ml-4 cursor-pointer">
-                        Đóng
-                    </button>
-                </div>
-            )}
 
             {/* KPI Statistics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

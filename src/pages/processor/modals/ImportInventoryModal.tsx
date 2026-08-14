@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X, ArrowDownRight, PackageCheck } from 'lucide-react';
 import type { MaterialItemDto } from '../../../services/processorService';
+import { toast } from '../../../utils/toast';
 
 interface ImportInventoryModalProps {
     isOpen: boolean;
@@ -26,7 +27,7 @@ export const ImportInventoryModal: React.FC<ImportInventoryModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedItemId || quantity <= 0) {
-            alert('Vui lòng chọn vật tư / sản phẩm từ Backend và nhập số lượng hợp lệ!');
+            toast.warning('Vui lòng chọn vật tư / sản phẩm từ Backend và nhập số lượng hợp lệ!');
             return;
         }
 

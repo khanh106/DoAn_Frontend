@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet } from 'lucide-react';
 import { AppButton } from '../ui/AppButton';
+import { toast } from '../../utils/toast';
 
 declare global {
     interface Window {
@@ -22,7 +23,7 @@ export const WalletConnect: React.FC = () => {
                 console.error("Wallet connection error:", err);
             }
         } else {
-            alert('Vui lòng cài đặt MetaMask!');
+            toast.error('Vui lòng cài đặt MetaMask!');
         }
     };
 

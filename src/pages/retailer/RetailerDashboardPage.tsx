@@ -25,6 +25,7 @@ import { AppTabs, type TabItem } from '../../components/ui/AppTabs';
 import { AppModal } from '../../components/ui/AppModal';
 import { retailerService, type ShipmentHistoryDto } from '../../services/retailerService';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '../../utils/toast';
 
 export const RetailerDashboardPage: React.FC = () => {
     const navigate = useNavigate();
@@ -52,7 +53,9 @@ export const RetailerDashboardPage: React.FC = () => {
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
             console.error('Lỗi tải danh sách vận đơn Retailer:', errorObj);
-            setError(errorObj.response?.data?.message || 'Không thể kết nối Backend API để tải vận đơn Siêu thị.');
+            const msg = errorObj.response?.data?.message || 'Không thể kết nối Backend API để tải vận đơn Siêu thị.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -73,11 +76,15 @@ export const RetailerDashboardPage: React.FC = () => {
         setSuccessMessage(null);
         try {
             await retailerService.receiveShipment(shipment.id);
-            setSuccessMessage(`✅ Đã tiếp nhận vận đơn ${shipment.shippingCode} thành công! Thông tin được xác thực trên Blockchain.`);
+            const successMsg = `✅ Đã tiếp nhận vận đơn ${shipment.shippingCode} thành công! Thông tin được xác thực trên Blockchain.`;
+            setSuccessMessage(successMsg);
+            toast.success(successMsg);
             await fetchShipments();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Tiếp nhận vận đơn thất bại! Vui lòng thử lại.');
+            const msg = errorObj.response?.data?.message || 'Tiếp nhận vận đơn thất bại! Vui lòng thử lại.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setActionLoadingId(null);
         }
@@ -94,11 +101,15 @@ export const RetailerDashboardPage: React.FC = () => {
         setSuccessMessage(null);
         try {
             await retailerService.readyForSale(shipment.id);
-            setSuccessMessage(`🎉 Sản phẩm từ vận đơn ${shipment.shippingCode} đã sẵn sàng bán! Người tiêu dùng có thể quét QR để truy xuất.`);
+            const successMsg = `🎉 Sản phẩm từ vận đơn ${shipment.shippingCode} đã sẵn sàng bán! Người tiêu dùng có thể quét QR để truy xuất.`;
+            setSuccessMessage(successMsg);
+            toast.success(successMsg);
             await fetchShipments();
         } catch (err) {
             const errorObj = err as AxiosError<{ message?: string }>;
-            setError(errorObj.response?.data?.message || 'Chuyển trạng thái sẵn sàng bán thất bại!');
+            const msg = errorObj.response?.data?.message || 'Chuyển trạng thái sẵn sàng bán thất bại!';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setActionLoadingId(null);
         }
@@ -415,30 +426,6 @@ export const RetailerDashboardPage: React.FC = () => {
                     <p className="text-[11px] text-slate-400 font-medium">Khối lượng tổng nhập kho</p>
                 </div>
             </div>
-
-            {/* ALERT NOTIFICATIONS */}
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm font-semibold flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <span>⚠️ {error}</span>
-                    </div>
-                    <button onClick={() => setError(null)} className="text-xs text-red-500 underline cursor-pointer">
-                        Đóng
-                    </button>
-                </div>
-            )}
-
-            {successMessage && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-sm font-bold flex items-center justify-between animate-fade-in">
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                        <span>{successMessage}</span>
-                    </div>
-                    <button onClick={() => setSuccessMessage(null)} className="text-xs text-emerald-700 underline cursor-pointer">
-                        Đóng
-                    </button>
-                </div>
-            )}
 
             {/* MAIN CONTENT AREA */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">

@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Truck, RefreshCw, AlertCircle, Building2 } from 'lucide-react';
-import { shippingAndQrService, type ShipmentInputDto } from '../../../services/shippingAndQrService';
+import {
+    X,
+    Truck,
+    RefreshCw,
+    AlertCircle,
+    Building2,
+    QrCode,
+    ShieldAlert,
+} from 'lucide-react';
+import { shippingAndQrService, type ShipmentInputDto, type QRCodeInfoDto } from '../../../services/shippingAndQrService';
 import { processorService, type BatchDto, type SearchRetailerResultDto } from '../../../services/processorService';
 import { AxiosError } from 'axios';
 
@@ -9,6 +17,8 @@ interface Props {
     batches?: BatchDto[];
     onClose: () => void;
     onSuccess: () => void;
+    /** Khi lô đang chọn chưa có QR, có thể bấm để chuyển sang bước sinh mã QR trước. */
+    onOpenQrModal?: () => void;
 }
 
 const generateShippingCode = () => {
@@ -22,6 +32,7 @@ export const CreateShipmentModal: React.FC<Props> = ({
     batches = [],
     onClose,
     onSuccess,
+    onOpenQrModal,
 }) => {
     // Lọc danh sách Lô sản xuất đã ở trạng thái PACKAGED (Đã đóng gói - BR-18)
     const packagedBatches = batches.filter((b) => b.currentStage === 'PACKAGED');
@@ -46,6 +57,48 @@ export const CreateShipmentModal: React.FC<Props> = ({
     const [submitting, setSubmitting] = useState<boolean>(false);
     const [isSuccess, setIsSuccess] = useState<boolean>(false);
     const [createdShipmentCode, setCreatedShipmentCode] = useState<string>('');
+
+    // === Kiểm tra mã QR của lô đang chọn (theo BR mới: phải tạo QR trước khi tạo đơn vận) ===
+    const [hasQrCode, setHasQrCode] = useState<boolean>(false);
+    const [checkingQr, setCheckingQr] = useState<boolean>(false);
+    const [qrCodesForBatch, setQrCodesForBatch] = useState<
+        { targetType: string; targetCode: string }[]
+    >([]);
+
+    const checkQrForBatch = async (targetBatchId: string) => {
+        if (!targetBatchId) {
+            setHasQrCode(false);
+            setQrCodesForBatch([]);
+            return;
+        }
+        setCheckingQr(true);
+        try {
+            // Lấy toàn bộ QR gắn với lô này (gồm cả BATCH/SUBBATCH/BOX/COMMERCIAL).
+            // Backend API hiện tại chỉ hỗ trợ tra cứu theo TargetType cụ thể,
+            // nên ưu tiên gọi 'BATCH' (vì lô gốc là đối tượng chính của đơn vận).
+            const batchQrs: QRCodeInfoDto[] = await shippingAndQrService
+                .getQRCodesByTarget('BATCH', targetBatchId)
+                .catch(() => [] as QRCodeInfoDto[]);
+            const activeOnes = batchQrs.filter(
+                (q) => (q.status || 'ACTIVE').toUpperCase() === 'ACTIVE'
+            );
+            setQrCodesForBatch(
+                activeOnes.map((q) => ({ targetType: q.targetType, targetCode: '' }))
+            );
+            setHasQrCode(activeOnes.length > 0);
+        } catch (err) {
+            console.error('Lỗi kiểm tra QR của lô:', err);
+            setHasQrCode(false);
+            setQrCodesForBatch([]);
+        } finally {
+            setCheckingQr(false);
+        }
+    };
+
+    // Kiểm tra QR mỗi khi đổi lô đang chọn
+    useEffect(() => {
+        void checkQrForBatch(selectedBatchId);
+    }, [selectedBatchId]);
 
     const [form, setForm] = useState<ShipmentInputDto>({
         shippingCode: generateShippingCode(),
@@ -98,6 +151,14 @@ export const CreateShipmentModal: React.FC<Props> = ({
 
         if (!selectedBatchId) {
             setErrorMessage('Vui lòng chọn Lô sản xuất đã đóng gói (PACKAGED) cần xuất kho vận chuyển.');
+            return;
+        }
+
+        // === Ràng buộc nghiệp vụ mới: HTX phải tạo mã QR cho lô TRƯỚC khi tạo đơn vận ===
+        if (!hasQrCode) {
+            setErrorMessage(
+                'Lô sản xuất này chưa có mã QR truy xuất. Vui lòng bấm "Tạo QR ngay" bên dưới để sinh mã QR trước khi tạo đơn vận.'
+            );
             return;
         }
 
@@ -178,6 +239,51 @@ export const CreateShipmentModal: React.FC<Props> = ({
                                         <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200">
                                             ✓ ĐÃ ĐÓNG GÓI
                                         </span>
+                                    </div>
+                                )}
+
+                                {/* === Banner kiểm tra mã QR của lô đang chọn === */}
+                                {selectedBatch && (
+                                    <div className="mt-2">
+                                        {checkingQr ? (
+                                            <div className="p-2.5 bg-slate-50 border border-slate-200 text-slate-500 rounded-xl text-[11px] font-medium flex items-center gap-2">
+                                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                <span>Đang kiểm tra mã QR của lô...</span>
+                                            </div>
+                                        ) : hasQrCode ? (
+                                            <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[11px] font-medium flex items-center justify-between gap-2">
+                                                <span className="flex items-center gap-1.5">
+                                                    <QrCode className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                                    <span>
+                                                        Lô đã có mã QR ({qrCodesForBatch.length} mã). Bạn có thể tạo đơn vận.
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-[11px] font-medium space-y-2">
+                                                <div className="flex items-start gap-1.5">
+                                                    <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <div className="font-bold text-rose-900">
+                                                            Lô sản xuất này chưa có mã QR truy xuất
+                                                        </div>
+                                                        <p className="text-rose-700 mt-0.5">
+                                                            Theo quy trình, Hợp tác xã phải <strong>sinh mã QR cho lô</strong> trước khi tạo đơn vận chuyển. Vui lòng bấm nút bên dưới.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {onOpenQrModal && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onOpenQrModal()}
+                                                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                                                    >
+                                                        <QrCode className="w-3.5 h-3.5" />
+                                                        Tạo QR ngay cho lô này
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -314,7 +420,12 @@ export const CreateShipmentModal: React.FC<Props> = ({
                             </button>
                             <button
                                 type="submit"
-                                disabled={submitting || packagedBatches.length === 0}
+                                disabled={
+                                    submitting ||
+                                    packagedBatches.length === 0 ||
+                                    checkingQr ||
+                                    !hasQrCode
+                                }
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-xs hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1.5"
                             >
                                 {submitting ? (

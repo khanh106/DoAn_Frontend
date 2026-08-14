@@ -4,7 +4,6 @@ import {
     Plus,
     Search,
     RefreshCw,
-    AlertCircle,
     CheckCircle2,
     Eye,
     Users,
@@ -31,6 +30,7 @@ import {
     type UserWorkerDto,
     type ProductionProcessDto
 } from '../../services/processorService';
+import { toast } from '../../utils/toast';
 
 export const PlanManagementPage: React.FC = () => {
     // Dữ liệu danh sách Kế hoạch / Lô sản xuất
@@ -102,7 +102,9 @@ export const PlanManagementPage: React.FC = () => {
             if (procRes.status === 'fulfilled') setProcesses(procRes.value);
         } catch (err: any) {
             console.error('Lỗi tải kế hoạch:', err);
-            setError('Không thể tải dữ liệu kế hoạch sản xuất từ hệ thống.');
+            const msg = 'Không thể tải dữ liệu kế hoạch sản xuất từ hệ thống.';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -120,26 +122,32 @@ export const PlanManagementPage: React.FC = () => {
 
         if (!formData.batchCode.trim()) {
             setFormError('Vui lòng nhập mã kế hoạch sản xuất.');
+            toast.error('Vui lòng nhập mã kế hoạch sản xuất.');
             return;
         }
         if (!formData.fruitTypeId) {
             setFormError('Vui lòng chọn loại trái cây/nông sản.');
+            toast.error('Vui lòng chọn loại trái cây/nông sản.');
             return;
         }
         if (!formData.productId) {
             setFormError('Vui lòng chọn sản phẩm đầu ra.');
+            toast.error('Vui lòng chọn sản phẩm đầu ra.');
             return;
         }
         if (!formData.farmAreaId) {
             setFormError('Vui lòng chọn vùng trồng áp dụng.');
+            toast.error('Vui lòng chọn vùng trồng áp dụng.');
             return;
         }
         if (formData.expectedQuantity <= 0) {
             setFormError('Sản lượng dự kiến phải lớn hơn 0.');
+            toast.error('Sản lượng dự kiến phải lớn hơn 0.');
             return;
         }
         if (!formData.representativeWorkerId) {
             setFormError('Vui lòng chọn người đại diện phụ trách kế hoạch.');
+            toast.error('Vui lòng chọn người đại diện phụ trách kế hoạch.');
             return;
         }
 
@@ -151,6 +159,7 @@ export const PlanManagementPage: React.FC = () => {
             };
             await processorService.createBatch(payload);
             setFormSuccess('Tạo kế hoạch sản xuất thành công!');
+            toast.success('Tạo kế hoạch sản xuất thành công!');
 
             fetchData();
             setTimeout(() => {
@@ -170,7 +179,9 @@ export const PlanManagementPage: React.FC = () => {
             }, 800);
         } catch (err: any) {
             console.error('Lỗi tạo kế hoạch:', err);
-            setFormError(err.response?.data?.message || 'Có lỗi xảy ra khi tạo kế hoạch sản xuất.');
+            const errMsg = err.response?.data?.message || 'Có lỗi xảy ra khi tạo kế hoạch sản xuất.';
+            setFormError(errMsg);
+            toast.error(errMsg);
         } finally {
             setSubmitting(false);
         }
@@ -393,14 +404,6 @@ export const PlanManagementPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* THÔNG BÁO LỖI / BẢNG KẾ HOẠCH */}
-            {error && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-xl flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-600" />
-                    <span>{error}</span>
-                </div>
-            )}
-
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-1">
                 {loading ? (
                     <div className="py-12 text-center text-slate-500 flex flex-col items-center justify-center gap-2">
@@ -426,19 +429,6 @@ export const PlanManagementPage: React.FC = () => {
                 maxWidth="xl"
             >
                 <form onSubmit={handleCreatePlan} className="space-y-4">
-                    {formError && (
-                        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-lg flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                            {formError}
-                        </div>
-                    )}
-                    {formSuccess && (
-                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs p-3 rounded-lg flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                            {formSuccess}
-                        </div>
-                    )}
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">

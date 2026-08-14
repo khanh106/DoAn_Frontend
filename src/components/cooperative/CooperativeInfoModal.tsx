@@ -5,7 +5,6 @@ import {
     Save,
     Upload,
     FileText,
-    CheckCircle2,
     AlertCircle,
     Phone,
     Mail,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
+import { toast } from '../../utils/toast';
 
 
 export interface CooperativeInfo {
@@ -130,7 +130,7 @@ export const CooperativeInfoModal: React.FC<CooperativeInfoModalProps> = ({ isOp
 
         Array.from(files).forEach((file) => {
             if (file.size > 10 * 1024 * 1024) {
-                alert(`File ${file.name} vượt quá dung lượng tối đa 10MB!`);
+                toast.warning(`File ${file.name} vượt quá dung lượng tối đa 10MB!`);
                 return;
             }
 
@@ -199,13 +199,14 @@ export const CooperativeInfoModal: React.FC<CooperativeInfoModalProps> = ({ isOp
 
             setIsSaving(false);
             setSuccessMessage(true);
+            toast.success('Cập nhật thông tin Hợp tác xã / Doanh nghiệp thành công!');
             setTimeout(() => {
                 setSuccessMessage(false);
                 onClose();
             }, 1200);
         } catch (error) {
             console.error('Lỗi lưu thông tin HTX vào Backend:', error);
-            alert('Có lỗi xảy ra khi lưu thông tin HTX vào hệ thống!');
+            toast.error('Có lỗi xảy ra khi lưu thông tin HTX vào hệ thống!');
             setIsSaving(false);
         }
     };
@@ -236,14 +237,6 @@ export const CooperativeInfoModal: React.FC<CooperativeInfoModalProps> = ({ isOp
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-
-                {/* THÔNG BÁO THÀNH CÔNG */}
-                {successMessage && (
-                    <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-800 font-semibold text-xs animate-in fade-in">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                        <span>Cập nhật thông tin Hợp tác xã / Doanh nghiệp thành công!</span>
-                    </div>
-                )}
 
                 {/* FORM NỘI DUNG */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[78vh] overflow-y-auto">
