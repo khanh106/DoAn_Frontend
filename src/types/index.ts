@@ -43,9 +43,11 @@ export interface User {
     walletAddress?: string;
     status: UserStatus;
     createdAt?: string;
-    avatar?: string;
-    bio?: string;
-    organization?: string;
+    // URL tương đối của ảnh đại diện (VD: "/uploads/avatars/{id}.jpg").
+    // Lưu URL thay vì base64 để gọn DB và cache được trên trình duyệt.
+    avatarUrl?: string | null;
+    bio?: string | null;
+    organization?: string | null;
 }
 
 export interface FruitType {

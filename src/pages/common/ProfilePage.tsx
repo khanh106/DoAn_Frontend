@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     User,
     Mail,
@@ -16,23 +16,35 @@ import {
     Wallet
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { authService } from '../../services/authService';
 import { toast } from '../../utils/toast';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 
 export const ProfilePage: React.FC = () => {
     const { user, updateUser } = useAuthStore();
 
-    // Dữ liệu Form khởi tạo từ User hiện tại
     const [fullName, setFullName] = useState(user?.fullName || user?.name || '');
     const [phone, setPhone] = useState(user?.phone || '');
     const [email, setEmail] = useState(user?.email || '');
-    const [organization, setOrganization] = useState(user?.organization || 'Hợp Tác Xã Nông Nghiệp Chất Lượng Cao');
-    const [bio, setBio] = useState(user?.bio || 'Chuyên canh và chế biến nông sản theo tiêu chuẩn VietGAP & Blockchain.');
-    const [avatarUrl, setAvatarUrl] = useState<string>(user?.avatar || '');
+    const [organization, setOrganization] = useState(user?.organization || '');
+    const [bio, setBio] = useState(user?.bio || '');
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string>(user?.avatarUrl || '');
 
     const [isSaving, setIsSaving] = useState(false);
     const [savedSuccess, setSavedSuccess] = useState(false);
     const [copiedWallet, setCopiedWallet] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setFullName(user?.fullName || user?.name || '');
+        setPhone(user?.phone || '');
+        setEmail(user?.email || '');
+        setOrganization(user?.organization || '');
+        setBio(user?.bio || '');
+        setAvatarFile(null);
+        setAvatarPreview(user?.avatarUrl || '');
+    }, [user]);
 
     const getRoleName = (role?: string) => {
         switch (role) {
@@ -50,21 +62,23 @@ export const ProfilePage: React.FC = () => {
         }
     };
 
-    // Hàm chọn & đọc ảnh từ máy tính (Up ảnh đại diện)
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                toast.warning('Dung lượng ảnh tối đa cho phép là 5MB!');
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = (uploadEvent) => {
-                const base64Img = uploadEvent.target?.result as string;
-                setAvatarUrl(base64Img);
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.warning('Dung lượng ảnh tối đa cho phép là 5MB!');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
         }
+
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+            const base64Img = uploadEvent.target?.result as string;
+            setAvatarPreview(base64Img);
+        };
+        reader.readAsDataURL(file);
+        setAvatarFile(file);
     };
 
     const handleCopyWallet = () => {
@@ -75,36 +89,59 @@ export const ProfilePage: React.FC = () => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
+        setSavedSuccess(false);
 
-        setTimeout(() => {
-            updateUser({
+        try {
+            const updated = await authService.updateMyProfile({
                 fullName,
-                name: fullName,
                 phone,
                 email,
-                organization,
-                bio,
-                avatar: avatarUrl,
+                organization: organization || null,
+                bio: bio || null,
             });
-            setIsSaving(false);
+
+            let avatarUrl = updated.avatarUrl ?? '';
+            if (avatarFile) {
+                const avatarResp = await authService.uploadAvatar(avatarFile);
+                avatarUrl = avatarResp.avatarUrl;
+                setAvatarFile(null);
+            }
+
+            updateUser({
+                fullName: updated.fullName,
+                name: updated.fullName,
+                phone: updated.phone,
+                email: updated.email,
+                organization: updated.organization || undefined,
+                bio: updated.bio || undefined,
+                avatarUrl: avatarUrl || undefined,
+            });
+
             setSavedSuccess(true);
             toast.success('Cập nhật thông tin tài khoản và ảnh đại diện thành công!');
             setTimeout(() => setSavedSuccess(false), 3000);
-        }, 400);
+        } catch (err: any) {
+            const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                'Cập nhật thất bại, vui lòng thử lại.';
+            toast.error(msg);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 pb-12">
-            {/* Header Card Banner */}
             <div className="relative bg-gradient-to-r from-emerald-800 via-teal-700 to-emerald-900 rounded-3xl p-6 md:p-8 text-white shadow-xl overflow-hidden">
                 <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
                     <div className="relative group shrink-0">
                         <div className="w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-white/20 bg-emerald-700/80 shadow-2xl flex items-center justify-center overflow-hidden text-4xl font-extrabold text-white">
-                            {avatarUrl ? (
-                                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            {avatarPreview ? (
+                                <img src={resolveAssetUrl(avatarPreview)} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
                                 fullName ? fullName.charAt(0).toUpperCase() : 'U'
                             )}
@@ -138,9 +175,7 @@ export const ProfilePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Chi tiết thông tin & Đổi ảnh */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Cột trái: Tải ảnh đại diện & Địa chỉ Ví */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
                     <div>
                         <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -152,8 +187,8 @@ export const ProfilePage: React.FC = () => {
 
                     <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-2xl p-6 transition-colors bg-slate-50/50">
                         <div className="w-24 h-24 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center text-emerald-800 text-3xl font-extrabold shadow-inner mb-4">
-                            {avatarUrl ? (
-                                <img src={avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
+                            {avatarPreview ? (
+                                <img src={resolveAssetUrl(avatarPreview)} alt="Avatar Preview" className="w-full h-full object-cover" />
                             ) : (
                                 <User className="w-10 h-10 text-emerald-600" />
                             )}
@@ -173,9 +208,15 @@ export const ProfilePage: React.FC = () => {
                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm cursor-pointer"
                         >
                             <Upload className="w-3.5 h-3.5" />
-                            <span>Chọn hình ảnh mới</span>
+                            <span>{avatarFile ? 'Đổi hình khác' : 'Chọn hình ảnh mới'}</span>
                         </button>
-                        <span className="text-[11px] text-slate-400 mt-2">Định dạng JPG, PNG, WEBP (Tối đa 5MB)</span>
+                        {avatarFile ? (
+                            <span className="text-[11px] text-emerald-700 mt-2 font-semibold">
+                                Đã chọn: {avatarFile.name} — bấm "Lưu thông tin tài khoản" để áp dụng.
+                            </span>
+                        ) : (
+                            <span className="text-[11px] text-slate-400 mt-2">Định dạng JPG, PNG, WEBP (Tối đa 5MB)</span>
+                        )}
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 space-y-2">
@@ -198,7 +239,6 @@ export const ProfilePage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Cột phải: Form nhập thông tin */}
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-xs">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="border-b border-slate-100 pb-4">
@@ -299,7 +339,12 @@ export const ProfilePage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex justify-end pt-4 border-t border-slate-100">
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                            {savedSuccess ? (
+                                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                                    <CheckCircle className="w-4 h-4" /> Đã lưu thành công
+                                </span>
+                            ) : <span />}
                             <button
                                 type="submit"
                                 disabled={isSaving}

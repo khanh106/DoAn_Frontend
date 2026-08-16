@@ -9,6 +9,9 @@ export interface UserDto {
     role: UserRole;
     walletAddress?: string | null;
     status: UserStatus;
+    avatarUrl?: string | null;
+    bio?: string | null;
+    organization?: string | null;
 }
 
 export interface AuthResponse {
@@ -38,4 +41,16 @@ export interface RegisterRequest {
 export interface RefreshTokenRequest {
     accessToken: string;
     refreshToken: string;
+}
+
+export interface UpdateMyProfileRequest {
+    fullName: string;
+    phone: string;
+    email: string;
+    organization?: string | null;
+    bio?: string | null;
+}
+
+export interface UploadAvatarResponse {
+    avatarUrl: string;
 }

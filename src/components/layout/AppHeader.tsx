@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, LogOut, Shield, Leaf, UserCheck, AlertTriangle, RefreshCw, ExternalLink, CheckCircle2, User, Building2, Wheat, Truck } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { adminService } from '../../services/adminService';
+import { resolveAssetUrl } from '../../utils/assetUrl';
 import { processorService } from '../../services/processorService';
 import { useUIStore } from '../../stores/uiStore';
 import { retailerService } from '../../services/retailerService';
@@ -260,8 +261,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
                     >
                         <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-sm overflow-hidden border border-emerald-500/20">
-                            {user?.avatar ? (
-                                <img src={user.avatar} alt={user.fullName || 'Avatar'} className="w-full h-full object-cover" />
+                            {user?.avatarUrl ? (
+                                <img src={resolveAssetUrl(user.avatarUrl)} alt={user.fullName || 'Avatar'} className="w-full h-full object-cover" />
                             ) : (
                                 user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'
                             )}

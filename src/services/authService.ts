@@ -1,6 +1,14 @@
 
 import { apiClient } from './apiClient';
-import type { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest } from '../types/auth';
+import type {
+    LoginRequest,
+    RegisterRequest,
+    AuthResponse,
+    RefreshTokenRequest,
+    UpdateMyProfileRequest,
+    UploadAvatarResponse,
+} from '../types/auth';
+import type { UserDto } from '../types/auth';
 import type { CooperativeInfo } from '../components/cooperative/CooperativeInfoModal';
 
 export const authService = {
@@ -24,6 +32,28 @@ export const authService = {
     // PUT /api/v1/users/wallet-address - Cập nhật địa chỉ ví Blockchain
     async updateWalletAddress(walletAddress: string, privateKey?: string): Promise<boolean> {
         const response = await apiClient.put<boolean>('/v1/users/wallet-address', { walletAddress, privateKey });
+        return response.data;
+    },
+
+    // GET /api/v1/users/profile - Lấy thông tin user đang đăng nhập
+    async getMyProfile(): Promise<UserDto> {
+        const response = await apiClient.get<UserDto>('/v1/users/profile');
+        return response.data;
+    },
+
+    // PUT /api/v1/users/profile - Cập nhật họ tên, SĐT, email, organization, bio
+    async updateMyProfile(data: UpdateMyProfileRequest): Promise<UserDto> {
+        const response = await apiClient.put<UserDto>('/v1/users/profile', data);
+        return response.data;
+    },
+
+    // POST /api/v1/users/avatar - Upload ảnh đại diện (multipart/form-data)
+    async uploadAvatar(file: File): Promise<UploadAvatarResponse> {
+        const form = new FormData();
+        form.append('file', file);
+        const response = await apiClient.post<UploadAvatarResponse>('/v1/users/avatar', form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
         return response.data;
     },
 

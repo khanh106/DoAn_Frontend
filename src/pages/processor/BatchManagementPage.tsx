@@ -316,7 +316,7 @@ export const BatchManagementPage: React.FC = () => {
             key: 'farmAreaName',
             render: (item) => (
                 <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
-                    🌾 {item.farmAreaName || 'Vùng chưa tên'}
+                    {item.farmAreaName || 'Vùng chưa tên'}
                 </span>
             ),
         },
@@ -594,7 +594,7 @@ export const BatchManagementPage: React.FC = () => {
                             onChange={(e) => setFormData({ ...formData, farmAreaId: e.target.value })}
                             options={[
                                 { label: '-- Chọn vùng trồng --', value: '' },
-                                ...farmAreas.map((fa) => ({ label: `🌾 ${fa.name} (${fa.plantingCode || 'Không MSVT'})`, value: fa.id })),
+                                ...farmAreas.map((fa) => ({ label: `${fa.name} (${fa.plantingCode || 'Không MSVT'})`, value: fa.id })),
                             ]}
                             required
                         />
@@ -690,7 +690,7 @@ export const BatchManagementPage: React.FC = () => {
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-slate-500 font-medium">Vùng trồng:</span>
-                                <span className="font-semibold text-slate-800">🌾 {selectedBatch.farmAreaName}</span>
+                                <span className="font-semibold text-slate-800">{selectedBatch.farmAreaName}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-slate-500 font-medium">Sản lượng dự kiến:</span>

@@ -413,11 +413,10 @@ export const RetailerQualityPage: React.FC = () => {
                         {/* Button 1: Perform Quality Audit */}
                         <AppButton
                             size="sm"
-                            variant={record ? 'outline' : 'primary'}
+                            variant={record ? 'outline' : 'green'}
                             onClick={() => void handleOpenQaModal(item)}
-                            className={!record ? 'bg-indigo-600 hover:bg-indigo-700 text-white font-bold' : ''}
+                            leftIcon={<ShieldCheck className="w-3.5 h-3.5 shrink-0" />}
                         >
-                            <ShieldCheck className="w-3.5 h-3.5 mr-1" />
                             {record ? 'Cập nhật QA' : 'Kiểm định QA'}
                         </AppButton>
 
@@ -426,9 +425,9 @@ export const RetailerQualityPage: React.FC = () => {
                             <button
                                 onClick={() => setReportShipment(item)}
                                 title="Xem Biên bản Kiểm định QA Siêu thị"
-                                className="p-2 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer border border-slate-200"
+                                className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer border border-slate-200 inline-flex items-center justify-center"
                             >
-                                <FileText className="w-4 h-4 text-emerald-600" />
+                                <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
                             </button>
                         )}
 
@@ -438,9 +437,13 @@ export const RetailerQualityPage: React.FC = () => {
                                 onClick={() => void handleExecuteReceive(item.id)}
                                 disabled={isLoading}
                                 title="Nhận kho siêu thị ngay (Smart Contract receive)"
-                                className="p-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer border border-emerald-200"
+                                className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer border border-emerald-200 inline-flex items-center justify-center"
                             >
-                                <PackageCheck className="w-4 h-4" />
+                                {isLoading ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                                ) : (
+                                    <PackageCheck className="w-4 h-4 shrink-0" />
+                                )}
                             </button>
                         )}
 
@@ -449,9 +452,13 @@ export const RetailerQualityPage: React.FC = () => {
                                 onClick={() => void handleExecuteReadyForSale(item.id)}
                                 disabled={isLoading}
                                 title="Duyệt Đưa lên kệ bán (Smart Contract readyForSale)"
-                                className="p-2 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer border border-amber-200"
+                                className="p-1.5 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer border border-amber-200 inline-flex items-center justify-center"
                             >
-                                <ShoppingBag className="w-4 h-4" />
+                                {isLoading ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                                ) : (
+                                    <ShoppingBag className="w-4 h-4 shrink-0" />
+                                )}
                             </button>
                         )}
 
@@ -461,9 +468,9 @@ export const RetailerQualityPage: React.FC = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                             title="Mở Trang Truy xuất QR Code"
-                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer border border-slate-200"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer border border-slate-200 inline-flex items-center justify-center"
                         >
-                            <ExternalLink className="w-4 h-4" />
+                            <ExternalLink className="w-4 h-4 shrink-0" />
                         </a>
                     </div>
                 );
@@ -491,8 +498,13 @@ export const RetailerQualityPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <AppButton variant="outline" size="sm" onClick={() => void fetchData()} isLoading={loading}>
-                        <RefreshCw className="w-4 h-4 mr-1.5" />
+                    <AppButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void fetchData()}
+                        isLoading={loading}
+                        leftIcon={<RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />}
+                    >
                         Tải lại
                     </AppButton>
                 </div>
@@ -599,26 +611,24 @@ export const RetailerQualityPage: React.FC = () => {
 
                                 {!selectedShipmentForQa.receivedDate && qaForm.qaResult === 'PASSED' && (
                                     <AppButton
-                                        variant="primary"
+                                        variant="green"
                                         size="sm"
                                         isLoading={submittingQa}
                                         onClick={() => handleSaveQaRecord('RECEIVE')}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                        leftIcon={<PackageCheck className="w-4 h-4 shrink-0" />}
                                     >
-                                        <PackageCheck className="w-4 h-4 mr-1" />
                                         Lưu QA & Tiếp nhận kho
                                     </AppButton>
                                 )}
 
                                 {selectedShipmentForQa.receivedDate && !selectedShipmentForQa.readyForSaleDate && qaForm.qaResult === 'PASSED' && (
                                     <AppButton
-                                        variant="primary"
+                                        variant="orange"
                                         size="sm"
                                         isLoading={submittingQa}
                                         onClick={() => handleSaveQaRecord('READY_FOR_SALE')}
-                                        className="bg-amber-500 hover:bg-amber-600 text-white font-bold"
+                                        leftIcon={<ShoppingBag className="w-4 h-4 shrink-0" />}
                                     >
-                                        <ShoppingBag className="w-4 h-4 mr-1" />
                                         Lưu QA & Duyệt lên kệ
                                     </AppButton>
                                 )}
@@ -631,23 +641,23 @@ export const RetailerQualityPage: React.FC = () => {
                         <div className="flex border-b border-slate-200">
                             <button
                                 onClick={() => setActiveQaTab('SUPERMARKET_CHECK')}
-                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeQaTab === 'SUPERMARKET_CHECK'
+                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 inline-flex items-center justify-center gap-2 cursor-pointer ${activeQaTab === 'SUPERMARKET_CHECK'
                                     ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
                                     : 'border-transparent text-slate-500 hover:text-slate-800'
                                     }`}
                             >
-                                <ShieldCheck className="w-4 h-4" />
-                                1. Đo Đạc & Cảm Quan Tại Siêu Thị
+                                <ShieldCheck className="w-4 h-4 shrink-0" />
+                                <span>1. Đo Đạc & Cảm Quan Tại Siêu Thị</span>
                             </button>
                             <button
                                 onClick={() => setActiveQaTab('ORIGIN_CERT')}
-                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${activeQaTab === 'ORIGIN_CERT'
+                                className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 inline-flex items-center justify-center gap-2 cursor-pointer ${activeQaTab === 'ORIGIN_CERT'
                                     ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
                                     : 'border-transparent text-slate-500 hover:text-slate-800'
                                     }`}
                             >
-                                <Award className="w-4 h-4" />
-                                2. Chứng Nhận VietGAP Gốc (Processor)
+                                <Award className="w-4 h-4 shrink-0" />
+                                <span>2. Chứng Nhận VietGAP Gốc (Processor)</span>
                             </button>
                         </div>
 
@@ -696,10 +706,10 @@ export const RetailerQualityPage: React.FC = () => {
                                                     key={star}
                                                     type="button"
                                                     onClick={() => setQaForm({ ...qaForm, freshnessRating: star })}
-                                                    className="cursor-pointer focus:outline-hidden"
+                                                    className="cursor-pointer focus:outline-hidden inline-flex items-center justify-center"
                                                 >
                                                     <Star
-                                                        className={`w-5 h-5 ${star <= qaForm.freshnessRating
+                                                        className={`w-5 h-5 shrink-0 ${star <= qaForm.freshnessRating
                                                             ? 'text-amber-400 fill-amber-400'
                                                             : 'text-slate-300'
                                                             }`}
@@ -786,37 +796,37 @@ export const RetailerQualityPage: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'PASSED' })}
-                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'PASSED'
+                                            className={`p-3 rounded-xl border text-xs font-bold inline-flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${qaForm.qaResult === 'PASSED'
                                                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
                                                 : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
                                                 }`}
                                         >
-                                            <CheckCircle2 className="w-5 h-5" />
-                                            ĐẠT CHUẨN (PASSED)
+                                            <CheckCircle2 className="w-5 h-5 shrink-0" />
+                                            <span>ĐẠT CHUẨN (PASSED)</span>
                                         </button>
 
                                         <button
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'QUARANTINE' })}
-                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'QUARANTINE'
+                                            className={`p-3 rounded-xl border text-xs font-bold inline-flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${qaForm.qaResult === 'QUARANTINE'
                                                 ? 'bg-amber-500 text-white border-amber-500 shadow-md'
                                                 : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
                                                 }`}
                                         >
-                                            <AlertTriangle className="w-5 h-5" />
-                                            TẠM GIỮ / KIỂM TRA LẠI
+                                            <AlertTriangle className="w-5 h-5 shrink-0" />
+                                            <span>TẠM GIỮ / KIỂM TRA LẠI</span>
                                         </button>
 
                                         <button
                                             type="button"
                                             onClick={() => setQaForm({ ...qaForm, qaResult: 'REJECTED' })}
-                                            className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${qaForm.qaResult === 'REJECTED'
+                                            className={`p-3 rounded-xl border text-xs font-bold inline-flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${qaForm.qaResult === 'REJECTED'
                                                 ? 'bg-rose-600 text-white border-rose-600 shadow-md'
                                                 : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
                                                 }`}
                                         >
-                                            <XCircle className="w-5 h-5" />
-                                            KHÔNG ĐẠT (REJECT)
+                                            <XCircle className="w-5 h-5 shrink-0" />
+                                            <span>KHÔNG ĐẠT (REJECT)</span>
                                         </button>
                                     </div>
                                 </div>
@@ -892,11 +902,15 @@ export const RetailerQualityPage: React.FC = () => {
                     maxWidth="lg"
                     footer={
                         <div className="flex items-center justify-between w-full">
-                            <AppButton variant="outline" size="sm" onClick={() => window.print()}>
-                                <Download className="w-4 h-4 mr-1.5" />
+                            <AppButton
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.print()}
+                                leftIcon={<Download className="w-4 h-4 shrink-0" />}
+                            >
                                 In Biên bản (Print)
                             </AppButton>
-                            <AppButton variant="primary" size="sm" onClick={() => setReportShipment(null)}>
+                            <AppButton variant="green" size="sm" onClick={() => setReportShipment(null)}>
                                 Đóng
                             </AppButton>
                         </div>

@@ -56,6 +56,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 role: authResp.user.role as UserRole,
                 status: authResp.user.status as UserStatus,
                 walletAddress: authResp.user.walletAddress || undefined,
+                avatarUrl: authResp.user.avatarUrl || undefined,
+                bio: authResp.user.bio || undefined,
+                organization: authResp.user.organization || undefined,
             };
 
             if (authResp.accessToken) {
@@ -84,6 +87,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     role: authResp.user.role as UserRole,
                     status: authResp.user.status as UserStatus,
                     walletAddress: authResp.user.walletAddress || undefined,
+                    avatarUrl: authResp.user.avatarUrl || undefined,
+                    bio: authResp.user.bio || undefined,
+                    organization: authResp.user.organization || undefined,
                 };
                 set({ user });
             }

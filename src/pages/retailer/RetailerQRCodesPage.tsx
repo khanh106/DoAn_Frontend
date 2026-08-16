@@ -21,6 +21,9 @@ import {
     Building2,
     MapPin,
     BadgeCheck,
+    Download,
+    ExternalLink,
+    Info,
 } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import { AppBadge } from '../../components/ui/AppBadge';
@@ -111,6 +114,26 @@ export const RetailerQRCodesPage: React.FC = () => {
         void navigator.clipboard.writeText(text);
         setCopiedId(id);
         setTimeout(() => setCopiedId(null), 2000);
+    };
+
+    // Tải ảnh SVG của mã QR về máy tính
+    const handleDownloadQrSvg = (code: string) => {
+        const svgElement = document.getElementById(`qr-modal-svg-${code}`);
+        if (!svgElement) {
+            toast.error('Không tìm thấy ảnh mã QR để tải về.');
+            return;
+        }
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = svgUrl;
+        downloadLink.download = `QR-Code-${code}.svg`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(svgUrl);
+        toast.success(`Đã tải ảnh mã QR [${code}] về máy.`);
     };
 
     // Truy vấn nhật ký truy xuất nguồn gốc thực tế từ Backend API (/api/v1/public/trace/{code})
@@ -227,188 +250,194 @@ export const RetailerQRCodesPage: React.FC = () => {
         { id: 'batch-print', label: 'In Tem Nhãn Khổ A4 Hàng Loạt' }
     ];
 
-    // Các cột bảng danh mục tương thích chuẩn AppTable
+    // Các cột bảng danh mục tương thích chuẩn AppTable đã được tinh giản & hiển thị ảnh QR
     const catalogColumns: Column<ShipmentHistoryDto>[] = [
         {
-            header: 'MÃ LÔ / VẬN ĐƠN',
-            key: 'shippingCode',
+            header: 'MÃ QR',
+            key: 'qrThumbnail',
+            align: 'center',
             render: (item) => {
                 const code = item.subBatchCode || item.batchCode || item.shippingCode;
+                const traceUrl = `${window.location.origin}/trace/${code}`;
                 return (
-                    <div className="flex flex-col gap-1 max-w-[200px]">
-                        <div className="font-semibold text-slate-800 flex items-center justify-between gap-2">
-                            <span className="flex items-center gap-1.5 truncate">
-                                <ShoppingBag className="w-4 h-4 text-emerald-600 shrink-0" />
-                                <span className="font-mono text-sm tracking-tight">{code}</span>
-                            </span>
-                            <button
-                                onClick={() => handleCopy(code, item.id + '-code')}
-                                className="text-slate-400 hover:text-emerald-600 transition-colors p-0.5 rounded hover:bg-slate-100"
-                                title="Sao chép mã"
-                            >
-                                {copiedId === item.id + '-code' ? (
-                                    <Check className="w-3.5 h-3.5 text-green-600" />
-                                ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                )}
-                            </button>
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
-                            <span>Vận đơn:</span>
-                            <span className="bg-slate-100 px-1 py-0.2 rounded text-slate-600 font-bold">{item.shippingCode}</span>
-                        </div>
-                    </div>
-                );
-            }
-        },
-        {
-            header: 'PHÂN LOẠI & TRỌNG LƯỢNG',
-            key: 'qrType',
-            render: (item) => {
-                const isSub = !!item.subBatchId;
-                return (
-                    <div className="flex flex-col gap-1.5">
-                        <div className="flex flex-wrap items-center gap-1">
-                            <AppBadge variant={isSub ? 'purple' : 'blue'}>
-                                {isSub ? 'Lô con (SubBatch)' : 'Lô gốc (Batch)'}
-                            </AppBadge>
-                            <AppBadge variant="green">
-                                {item.weight.toLocaleString('vi-VN')} kg
-                            </AppBadge>
-                        </div>
-                        <span className="text-[11px] text-slate-500 font-medium">
-                            {isSub ? 'Phát hành từ Lô con HTX' : 'Đơn vị nguyên đai gốc'}
+                    <div className="flex flex-col items-center justify-center gap-1">
+                        <button
+                            type="button"
+                            onClick={() => void handleViewExistingQr(item)}
+                            title="Bấm để xem ảnh phóng to và tải mã QR"
+                            className="p-1.5 bg-white hover:bg-emerald-50 rounded-xl border border-slate-200 hover:border-emerald-500 shadow-2xs hover:shadow-md transition-all cursor-pointer group inline-flex flex-col items-center justify-center"
+                        >
+                            <QRCodeSVG
+                                value={traceUrl}
+                                size={44}
+                                level="M"
+                                includeMargin={false}
+                                className="transition-transform group-hover:scale-105"
+                            />
+                        </button>
+                        <span
+                            onClick={() => void handleViewExistingQr(item)}
+                            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer inline-flex items-center gap-0.5"
+                        >
+                            <QrCode className="w-3 h-3 shrink-0" />
+                            <span>Xem ảnh</span>
                         </span>
                     </div>
                 );
             }
         },
         {
-            header: 'GIÁ NIÊM YẾT & KỆ',
+            header: 'SẢN PHẨM & MÃ LÔ',
+            key: 'shippingCode',
+            render: (item) => {
+                const code = item.subBatchCode || item.batchCode || item.shippingCode;
+                const isSub = !!item.subBatchId;
+                return (
+                    <div className="flex flex-col gap-1 max-w-[220px]">
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5 truncate text-sm">
+                            <ShoppingBag className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="truncate">{item.subBatchCode ? 'Trái Cây Lô Con Hạng A' : 'Nông Sản Chuẩn VietGAP'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 truncate">
+                                {code}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => handleCopy(code, item.id + '-code')}
+                                className="text-slate-400 hover:text-emerald-600 transition-colors p-1 rounded-md hover:bg-slate-100 cursor-pointer inline-flex items-center justify-center shrink-0"
+                                title="Sao chép mã lô"
+                            >
+                                {copiedId === item.id + '-code' ? (
+                                    <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                                ) : (
+                                    <Copy className="w-3.5 h-3.5 shrink-0" />
+                                )}
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                            <AppBadge variant={isSub ? 'purple' : 'blue'}>
+                                {isSub ? 'Lô con (SubBatch)' : 'Lô gốc (Batch)'}
+                            </AppBadge>
+                            <span className="truncate">Vận đơn: <strong className="font-mono text-slate-700">{item.shippingCode}</strong></span>
+                        </div>
+                    </div>
+                );
+            }
+        },
+        {
+            header: 'TRỌNG LƯỢNG & GIÁ KỆ',
             key: 'shelfPrice',
             render: (item) => {
                 const config = shelfConfigs?.[item.id];
                 return (
                     <div className="flex flex-col gap-1">
-                        {config?.unitPriceVnd ? (
-                            <span className="inline-flex items-center w-fit px-2 py-0.5 bg-emerald-50 text-emerald-800 text-xs font-extrabold rounded-lg border border-emerald-200">
-                                <Tag className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                                {config.unitPriceVnd.toLocaleString('vi-VN')} đ/kg
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-extrabold text-slate-900 text-xs">
+                                {item.weight.toLocaleString('vi-VN')} kg
                             </span>
-                        ) : (
-                            <span className="inline-flex items-center w-fit px-2 py-0.5 bg-amber-50 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
-                                Chưa cài giá
-                            </span>
-                        )}
-                        <span className="text-xs text-slate-500 flex items-center gap-1 font-semibold pl-1">
-                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                            {config?.shelfLocation || 'Chưa gán kệ'}
+                            {config?.unitPriceVnd ? (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-800 text-xs font-black rounded-lg border border-emerald-200">
+                                    <Tag className="w-3 h-3 mr-1 text-emerald-600 shrink-0" />
+                                    {config.unitPriceVnd.toLocaleString('vi-VN')} đ/kg
+                                </span>
+                            ) : (
+                                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                    Chưa cài giá
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>Kệ: <strong className="text-slate-700">{config?.shelfLocation || 'Chưa gán kệ'}</strong></span>
                         </span>
                     </div>
                 );
             }
         },
         {
-            header: 'KIỂM ĐỊNH QA',
-            key: 'quality',
-            render: (item) => {
-                const qa = qualityRecords?.[item.id];
-                if (!qa) {
-                    return (
-                        <span className="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-lg">
-                            Chờ kiểm định
-                        </span>
-                    );
-                }
-                const starRating = '★'.repeat(qa.freshnessRating) + '☆'.repeat(5 - qa.freshnessRating);
-                return (
-                    <div className="flex flex-col gap-1">
-                        <AppBadge variant={qa.qaResult === 'PASSED' ? 'green' : 'red'}>
-                            {qa.qaResult === 'PASSED' ? '✓ Đạt QA' : '⚠️ Cảnh báo'}
-                        </AppBadge>
-                        <div className="text-[11px] text-slate-500 font-medium">
-                            Phân hạng: <span className="font-bold text-slate-700">{qa.sensoryGrade.replace('GRADE_', 'Hạng ')}</span>
-                        </div>
-                        <div className="text-xs text-amber-500 font-bold tracking-wider" title={`Độ tươi: ${qa.freshnessRating}/5`}>
-                            {starRating}
-                        </div>
-                    </div>
-                );
-            }
-        },
-        {
-            header: 'TRẠNG THÁI SIÊU THỊ',
+            header: 'TRẠNG THÁI & KIỂM ĐỊNH',
             key: 'status',
             render: (item) => {
-                if (item.readyForSaleDate) {
-                    return (
-                        <div className="flex flex-col gap-0.5">
-                            <AppBadge variant="green">Đang bán trên kệ</AppBadge>
-                            <span className="text-[10px] text-slate-400 pl-1 font-medium">
-                                {new Date(item.readyForSaleDate).toLocaleDateString('vi-VN')}
-                            </span>
-                        </div>
-                    );
-                }
-                if (item.receivedDate) {
-                    return (
-                        <div className="flex flex-col gap-0.5">
-                            <AppBadge variant="blue">Đã tiếp nhận kho</AppBadge>
-                            <span className="text-[10px] text-slate-400 pl-1 font-medium">
-                                {new Date(item.receivedDate).toLocaleDateString('vi-VN')}
-                            </span>
-                        </div>
-                    );
-                }
+                const qa = qualityRecords?.[item.id];
                 return (
-                    <div className="flex flex-col gap-0.5">
-                        <AppBadge variant="gray">Đang vận chuyển</AppBadge>
-                        <span className="text-[10px] text-slate-400 pl-1 font-medium">Chưa tiếp nhận</span>
+                    <div className="flex flex-col gap-1.5">
+                        {item.readyForSaleDate ? (
+                            <AppBadge variant="green">Đang bán trên kệ</AppBadge>
+                        ) : item.receivedDate ? (
+                            <AppBadge variant="blue">Đã tiếp nhận kho</AppBadge>
+                        ) : (
+                            <AppBadge variant="gray">Đang vận chuyển</AppBadge>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                            {qa ? (
+                                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                    qa.qaResult === 'PASSED'
+                                        ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                                        : 'text-amber-700 bg-amber-50 border border-amber-200'
+                                }`}>
+                                    <ShieldCheck className="w-3 h-3 shrink-0" />
+                                    <span>{qa.qaResult === 'PASSED' ? 'Đạt QA Siêu thị' : 'Chờ xử lý QA'}</span>
+                                </span>
+                            ) : (
+                                <span className="text-[10px] text-slate-400 italic">Chưa kiểm định QA</span>
+                            )}
+                        </div>
                     </div>
                 );
             }
         },
         {
-            header: 'THAO TÁC QR',
+            header: 'THAO TÁC',
             key: 'actions',
+            align: 'center',
             render: (item) => {
                 const qrValue = item.subBatchCode || item.batchCode || item.shippingCode;
                 const traceUrl = `${window.location.origin}/trace/${qrValue}`;
                 return (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-center gap-1.5">
+                        {/* 1. Xem ảnh QR to */}
                         <button
-                            onClick={() => void handleViewTraceability(item)}
-                            title="Xem chi tiết nguồn gốc & Blockchain"
-                            className="p-1.5 text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            type="button"
+                            onClick={() => void handleViewExistingQr(item)}
+                            title="Xem và tải ảnh mã QR"
+                            className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors cursor-pointer border border-purple-200 inline-flex items-center justify-center gap-1 text-xs font-semibold"
                         >
-                            <Eye className="w-4 h-4" />
+                            <QrCode className="w-3.5 h-3.5 shrink-0" />
+                            <span>Mã QR</span>
                         </button>
 
+                        {/* 2. In tem */}
                         <button
+                            type="button"
                             onClick={() => setPrintModalShipment(item)}
                             title="In tem nhãn giá & Mã QR"
-                            className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer border border-slate-200 inline-flex items-center justify-center"
                         >
-                            <Printer className="w-4 h-4" />
+                            <Printer className="w-4 h-4 shrink-0" />
                         </button>
 
+                        {/* 3. Xem chi tiết truy xuất */}
                         <button
-                            onClick={() => void handleViewExistingQr(item)}
-                            title="Xem mã QR lô hàng (từ HTX)"
-                            className="p-1.5 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            type="button"
+                            onClick={() => void handleViewTraceability(item)}
+                            title="Xem chi tiết nguồn gốc & Blockchain"
+                            className="p-1.5 text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer border border-slate-200 inline-flex items-center justify-center"
                         >
-                            <QrCode className="w-4 h-4" />
+                            <Eye className="w-4 h-4 shrink-0" />
                         </button>
 
+                        {/* 4. Copy link */}
                         <button
+                            type="button"
                             onClick={() => handleCopy(traceUrl, item.id)}
                             title="Sao chép Link truy xuất công khai"
-                            className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer border border-slate-200 inline-flex items-center justify-center"
                         >
                             {copiedId === item.id ? (
-                                <Check className="w-4 h-4 text-green-600" />
+                                <Check className="w-4 h-4 text-green-600 shrink-0" />
                             ) : (
-                                <Copy className="w-4 h-4" />
+                                <Copy className="w-4 h-4 shrink-0" />
                             )}
                         </button>
                     </div>
@@ -469,12 +498,12 @@ export const RetailerQRCodesPage: React.FC = () => {
 
                     <div className="flex flex-wrap items-center gap-3">
                         <AppButton
-                            variant="secondary"
+                            variant="grey"
                             onClick={() => void loadData()}
                             disabled={loading}
-                            className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md"
+                            className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md cursor-pointer"
+                            leftIcon={<RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />}
                         >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                             Làm Mới
                         </AppButton>
 
@@ -482,9 +511,9 @@ export const RetailerQRCodesPage: React.FC = () => {
                             onClick={() => {
                                 setActiveTab('scanner');
                             }}
-                            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold border-none shadow-lg shadow-emerald-500/20"
+                            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold border-none shadow-lg shadow-emerald-500/20 cursor-pointer"
+                            leftIcon={<Scan className="w-4 h-4 shrink-0" />}
                         >
-                            <Scan className="w-4 h-4 mr-2" />
                             Quét QR Tức Thì
                         </AppButton>
                     </div>
@@ -507,7 +536,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                     <div className="bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/10">
                         <div className="text-xs text-emerald-200 font-medium">Trạng Thái Chuỗi Blockchain</div>
                         <div className="text-2xl font-bold text-green-300 mt-1 flex items-center gap-1.5">
-                            <BadgeCheck className="w-6 h-6 text-green-400" />
+                            <BadgeCheck className="w-6 h-6 text-green-400 shrink-0" />
                             Đã Đồng Bộ
                         </div>
                     </div>
@@ -603,9 +632,10 @@ export const RetailerQRCodesPage: React.FC = () => {
                                     <AppButton
                                         onClick={() => void handleExecuteScan()}
                                         disabled={scanLoading}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                        variant="green"
+                                        leftIcon={scanLoading ? <RefreshCw className="w-4 h-4 animate-spin shrink-0" /> : <Scan className="w-4 h-4 shrink-0" />}
                                     >
-                                        {scanLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Quét / Tra Cứu'}
+                                        Quét / Tra Cứu
                                     </AppButton>
                                 </div>
                             </div>
@@ -624,7 +654,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                                                         setScanInputCode(code);
                                                         void handleExecuteScan(code);
                                                     }}
-                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 rounded-lg text-xs font-mono transition-colors border border-slate-200"
+                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 rounded-lg text-xs font-mono transition-colors border border-slate-200 cursor-pointer inline-flex items-center justify-center"
                                                 >
                                                     {code}
                                                 </button>
@@ -689,8 +719,8 @@ export const RetailerQRCodesPage: React.FC = () => {
                                     <div className="space-y-4">
                                         <div className="border-b border-slate-100 pb-3">
                                             <h4 className="font-bold text-slate-900 flex items-center gap-2">
-                                                <ShoppingBag className="w-4 h-4 text-emerald-600" />
-                                                {scanResult.targetInfo?.productName || 'Nông Sản Chuẩn VietGAP'}
+                                                <ShoppingBag className="w-4 h-4 text-emerald-600 shrink-0" />
+                                                <span>{scanResult.targetInfo?.productName || 'Nông Sản Chuẩn VietGAP'}</span>
                                             </h4>
                                             <div className="text-xs text-slate-500 mt-1">
                                                 Mã lô: <span className="font-mono text-slate-800 font-semibold">{scanResult.targetInfo?.code || scanInputCode}</span>
@@ -748,7 +778,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                                         {scanResult.blockchainHistory && scanResult.blockchainHistory.length > 0 && (
                                             <div className="p-3 bg-slate-900 text-slate-200 rounded-xl space-y-2">
                                                 <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                                                    <BadgeCheck className="w-4 h-4" />
+                                                    <BadgeCheck className="w-4 h-4 shrink-0" />
                                                     Lịch Sử Giao Dịch Smart Contract (On-Chain)
                                                 </div>
                                                 {scanResult.blockchainHistory.slice(0, 3).map((tx: any, idx: number) => (
@@ -773,7 +803,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                         <div>
                             <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                                <Printer className="w-5 h-5 text-green-600" />
+                                <Printer className="w-5 h-5 text-green-600 shrink-0" />
                                 In Tem Nhãn QR Hàng Loạt Khổ A4
                             </h3>
                             <p className="text-xs text-slate-500">
@@ -794,9 +824,9 @@ export const RetailerQRCodesPage: React.FC = () => {
                             <AppButton
                                 onClick={() => window.print()}
                                 disabled={selectedShipmentIds.length === 0}
-                                className="bg-green-700 hover:bg-green-800 text-white font-bold"
+                                variant="green"
+                                leftIcon={<Printer className="w-4 h-4 shrink-0" />}
                             >
-                                <Printer className="w-4 h-4 mr-2" />
                                 In Tất Cả Tem Đã Chọn ({selectedShipmentIds.length})
                             </AppButton>
                         </div>
@@ -889,13 +919,13 @@ export const RetailerQRCodesPage: React.FC = () => {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setPrintLabelSize('50x30')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${printLabelSize === '50x30' ? 'bg-green-700 text-white' : 'bg-white text-slate-700 border border-slate-200'}`}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center ${printLabelSize === '50x30' ? 'bg-green-700 text-white' : 'bg-white text-slate-700 border border-slate-200'}`}
                                 >
                                     Tem dán khay (50x30mm)
                                 </button>
                                 <button
                                     onClick={() => setPrintLabelSize('80x50')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${printLabelSize === '80x50' ? 'bg-green-700 text-white' : 'bg-white text-slate-700 border border-slate-200'}`}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center ${printLabelSize === '80x50' ? 'bg-green-700 text-white' : 'bg-white text-slate-700 border border-slate-200'}`}
                                 >
                                     Tem kệ hàng (80x50mm)
                                 </button>
@@ -940,7 +970,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                                 <div className="print-area bg-white border-2 border-slate-900 rounded-xl shadow-lg flex flex-col justify-between w-[400px] h-[240px] overflow-hidden print:shadow-none print:m-0">
                                     <div className="bg-emerald-700 text-white px-3 py-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
                                         <span className="flex items-center gap-1">
-                                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-200" />
+                                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
                                             Bảo Chứng Blockchain
                                         </span>
                                         <span className="text-emerald-100">VietGAP Quality</span>
@@ -999,9 +1029,9 @@ export const RetailerQRCodesPage: React.FC = () => {
                             </AppButton>
                             <AppButton
                                 onClick={() => window.print()}
-                                className="bg-green-700 hover:bg-green-800 text-white font-bold"
+                                variant="green"
+                                leftIcon={<Printer className="w-4 h-4 shrink-0" />}
                             >
-                                <Printer className="w-4 h-4 mr-2" />
                                 In Tem Nhãn Lựa Chọn
                             </AppButton>
                         </div>
@@ -1009,81 +1039,170 @@ export const RetailerQRCodesPage: React.FC = () => {
                 </AppModal>
             )}
 
-            {/* MODAL 2: XEM MÃ QR TẠO SẴN TỪ HTX */}
+            {/* MODAL 2: XEM VÀ TẢI ẢNH MÃ QR */}
             {viewQrShipment && (
                 <AppModal
                     isOpen={!!viewQrShipment}
                     onClose={() => setViewQrShipment(null)}
-                    title="Mã QR Lô Hàng (Từ Hợp Tác Xã)"
-                >
-                    <div className="space-y-4">
-                        <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
-                            <div className="text-xs text-purple-600 font-medium">Mã lô hàng</div>
-                            <div className="font-bold text-purple-900 text-sm">
-                                {viewQrShipment.subBatchCode || viewQrShipment.batchCode || viewQrShipment.shippingCode}
+                    title={`MÃ QR TRUY XUẤT NGUỒN GỐC - LÔ [${viewQrShipment.subBatchCode || viewQrShipment.batchCode || viewQrShipment.shippingCode}]`}
+                    maxWidth="md"
+                    footer={
+                        <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                                <AppButton
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDownloadQrSvg(viewQrShipment.subBatchCode || viewQrShipment.batchCode || viewQrShipment.shippingCode)}
+                                    leftIcon={<Download className="w-4 h-4 shrink-0" />}
+                                >
+                                    Tải ảnh QR (.svg)
+                                </AppButton>
+                                <AppButton
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const ship = viewQrShipment;
+                                        setViewQrShipment(null);
+                                        setPrintModalShipment(ship);
+                                    }}
+                                    leftIcon={<Printer className="w-4 h-4 shrink-0 text-blue-600" />}
+                                >
+                                    In Tem Nhãn
+                                </AppButton>
                             </div>
-                            <div className="text-[11px] text-purple-500 mt-0.5">
-                                Vận đơn: {viewQrShipment.shippingCode}
-                            </div>
-                        </div>
-
-                        {viewQrLoading ? (
-                            <div className="py-8 flex flex-col items-center justify-center text-slate-500">
-                                <RefreshCw className="w-6 h-6 animate-spin text-purple-600 mb-2" />
-                                <span className="text-xs">Đang tải mã QR từ hệ thống...</span>
-                            </div>
-                        ) : viewQrCodes.length === 0 ? (
-                            <div className="py-8 text-center">
-                                <QrCode className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                                <div className="text-sm font-bold text-slate-600">Chưa Có Mã QR Nào</div>
-                                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                                    Hợp tác xã chưa tạo mã QR cho lô hàng này. Vui lòng liên hệ HTX để phát hành mã QR truy xuất nguồn gốc.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                    <BadgeCheck className="w-4 h-4 text-green-600" />
-                                    Tìm thấy {viewQrCodes.length} mã QR đã tạo sẵn
-                                </div>
-                                {viewQrCodes.map((qr) => (
-                                    <div key={qr.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <AppBadge variant={qr.targetType === 'BATCH' ? 'blue' : qr.targetType === 'SUBBATCH' ? 'purple' : 'green'}>
-                                                {qr.targetType}
-                                            </AppBadge>
-                                            <AppBadge variant={qr.status === 'ACTIVE' ? 'green' : 'gray'}>
-                                                {qr.status === 'ACTIVE' ? 'Đang hoạt động' : qr.status}
-                                            </AppBadge>
-                                        </div>
-                                        <div className="text-xs text-slate-600">
-                                            <span className="font-medium text-slate-500">QR Value:</span>{' '}
-                                            <span className="font-mono text-slate-800 break-all">{qr.qrValue}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-[11px] text-slate-400">
-                                            <span>Ngày tạo: {new Date(qr.createdAt).toLocaleDateString('vi-VN')}</span>
-                                            <button
-                                                onClick={() => handleCopy(qr.qrValue, qr.id)}
-                                                className="flex items-center gap-1 text-slate-500 hover:text-emerald-600 transition-colors"
-                                            >
-                                                {copiedId === qr.id ? (
-                                                    <><Check className="w-3 h-3 text-green-600" /> Đã sao chép</>
-                                                ) : (
-                                                    <><Copy className="w-3 h-3" /> Sao chép</>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        <div className="flex justify-end pt-4 border-t border-slate-200">
-                            <AppButton variant="secondary" onClick={() => setViewQrShipment(null)}>
+                            <AppButton variant="grey" size="sm" onClick={() => setViewQrShipment(null)}>
                                 Đóng
                             </AppButton>
                         </div>
-                    </div>
+                    }
+                >
+                    {(() => {
+                        const code = viewQrShipment.subBatchCode || viewQrShipment.batchCode || viewQrShipment.shippingCode;
+                        const traceUrl = `${window.location.origin}/trace/${code}`;
+                        return (
+                            <div className="space-y-4 text-center">
+                                {/* Khung Hiển Thị Ảnh QR Code */}
+                                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center">
+                                    <div className="bg-white p-4 rounded-2xl border-2 border-slate-900 shadow-md flex flex-col items-center">
+                                        <QRCodeSVG
+                                            id={`qr-modal-svg-${code}`}
+                                            value={traceUrl}
+                                            size={200}
+                                            level="H"
+                                            includeMargin={true}
+                                        />
+                                        <div className="mt-2 text-center">
+                                            <span className="text-[10px] font-black tracking-wider text-emerald-800 uppercase block">
+                                                ★ GREEN-MART TRUY XUẤT ON-CHAIN ★
+                                            </span>
+                                            <span className="text-xs font-mono font-bold text-slate-800">{code}</span>
+                                        </div>
+                                    </div>
+                                    <span className="text-[11px] text-slate-500 mt-3 font-medium">
+                                        Quét mã bằng Camera điện thoại hoặc Zalo để mở trang truy xuất
+                                    </span>
+                                </div>
+
+                                {/* Thông tin lô hàng */}
+                                <div className="p-3.5 bg-white border border-slate-200 rounded-xl text-left text-xs space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-500 font-medium">Sản phẩm:</span>
+                                        <span className="font-bold text-slate-900">
+                                            {viewQrShipment.subBatchCode ? 'Trái Cây Lô Con Hạng A' : 'Nông Sản Chuẩn VietGAP'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-500 font-medium">Mã vận đơn:</span>
+                                        <span className="font-mono font-bold text-slate-800">{viewQrShipment.shippingCode}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-500 font-medium">Trọng lượng:</span>
+                                        <span className="font-bold text-emerald-700">{viewQrShipment.weight} kg</span>
+                                    </div>
+                                </div>
+
+                                {/* Link tra cứu công khai & Copy */}
+                                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 text-left space-y-1.5">
+                                    <div className="flex items-center justify-between font-bold">
+                                        <span className="flex items-center gap-1.5">
+                                            <Info className="w-4 h-4 text-emerald-600 shrink-0" />
+                                            Đường dẫn quét tem trực tiếp:
+                                        </span>
+                                        <a
+                                            href={traceUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-emerald-700 hover:text-emerald-900 inline-flex items-center gap-1 underline"
+                                        >
+                                            <span>Mở tab mới</span>
+                                            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                                        </a>
+                                    </div>
+                                    <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-emerald-200 text-[11px] font-mono break-all gap-2">
+                                        <span className="truncate">{traceUrl}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCopy(traceUrl, 'modal-qr-copy')}
+                                            className="p-1 text-emerald-700 hover:bg-emerald-100 rounded cursor-pointer shrink-0 inline-flex items-center justify-center"
+                                            title="Sao chép liên kết"
+                                        >
+                                            {copiedId === 'modal-qr-copy' ? (
+                                                <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                                            ) : (
+                                                <Copy className="w-3.5 h-3.5 shrink-0" />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Danh sách QR phụ nếu HTX cấp */}
+                                {viewQrLoading ? (
+                                    <div className="py-4 flex items-center justify-center gap-2 text-xs text-slate-500">
+                                        <RefreshCw className="w-4 h-4 animate-spin text-purple-600 shrink-0" />
+                                        <span>Đang kiểm tra các mã QR định danh khác từ HTX...</span>
+                                    </div>
+                                ) : viewQrCodes.length > 0 ? (
+                                    <div className="space-y-2 text-left pt-2 border-t border-slate-200">
+                                        <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                            <BadgeCheck className="w-4 h-4 text-purple-600 shrink-0" />
+                                            <span>Mã định danh QR phụ từ HTX ({viewQrCodes.length})</span>
+                                        </div>
+                                        <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                                            {viewQrCodes.map((qr) => (
+                                                <div key={qr.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                                            <AppBadge variant={qr.targetType === 'SUBBATCH' ? 'purple' : 'blue'}>
+                                                                {qr.targetType}
+                                                            </AppBadge>
+                                                            <span className="text-[10px] text-slate-400">
+                                                                {new Date(qr.createdAt).toLocaleDateString('vi-VN')}
+                                                            </span>
+                                                        </div>
+                                                        <div className="font-mono text-[11px] text-slate-700 truncate">{qr.qrValue}</div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopy(qr.qrValue, qr.id)}
+                                                            className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-slate-200 rounded cursor-pointer inline-flex items-center justify-center"
+                                                            title="Sao chép mã"
+                                                        >
+                                                            {copiedId === qr.id ? (
+                                                                <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                                                            ) : (
+                                                                <Copy className="w-3.5 h-3.5 shrink-0" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        );
+                    })()}
                 </AppModal>
             )}
 

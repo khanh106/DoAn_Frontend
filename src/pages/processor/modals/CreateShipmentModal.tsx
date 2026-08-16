@@ -18,7 +18,7 @@ interface Props {
     onClose: () => void;
     onSuccess: () => void;
     /** Khi lô đang chọn chưa có QR, có thể bấm để chuyển sang bước sinh mã QR trước. */
-    onOpenQrModal?: () => void;
+    onOpenQrModal?: (batchId?: string) => void;
 }
 
 const generateShippingCode = () => {
@@ -74,16 +74,19 @@ export const CreateShipmentModal: React.FC<Props> = ({
         setCheckingQr(true);
         try {
             // Lấy toàn bộ QR gắn với lô này (gồm cả BATCH/SUBBATCH/BOX/COMMERCIAL).
-            // Backend API hiện tại chỉ hỗ trợ tra cứu theo TargetType cụ thể,
-            // nên ưu tiên gọi 'BATCH' (vì lô gốc là đối tượng chính của đơn vận).
-            const batchQrs: QRCodeInfoDto[] = await shippingAndQrService
-                .getQRCodesByTarget('BATCH', targetBatchId)
-                .catch(() => [] as QRCodeInfoDto[]);
-            const activeOnes = batchQrs.filter(
+            const [batchQrs, subBatchQrs, boxQrs, commercialQrs] = await Promise.all([
+                shippingAndQrService.getQRCodesByTarget('BATCH', targetBatchId).catch(() => [] as QRCodeInfoDto[]),
+                shippingAndQrService.getQRCodesByTarget('SUBBATCH', targetBatchId).catch(() => [] as QRCodeInfoDto[]),
+                shippingAndQrService.getQRCodesByTarget('BOX', targetBatchId).catch(() => [] as QRCodeInfoDto[]),
+                shippingAndQrService.getQRCodesByTarget('COMMERCIAL', targetBatchId).catch(() => [] as QRCodeInfoDto[]),
+            ]);
+
+            const allQrs = [...batchQrs, ...subBatchQrs, ...boxQrs, ...commercialQrs];
+            const activeOnes = allQrs.filter(
                 (q) => (q.status || 'ACTIVE').toUpperCase() === 'ACTIVE'
             );
             setQrCodesForBatch(
-                activeOnes.map((q) => ({ targetType: q.targetType, targetCode: '' }))
+                activeOnes.map((q) => ({ targetType: q.targetType, targetCode: q.targetCode || '' }))
             );
             setHasQrCode(activeOnes.length > 0);
         } catch (err) {
@@ -117,15 +120,16 @@ export const CreateShipmentModal: React.FC<Props> = ({
             setLoadingRetailers(true);
             try {
                 const data = await processorService.searchRetailers();
-                // Lọc chỉ giữ lại các Siêu thị / Điểm bán đã liên kết với Hợp Tác Xã (isLinked === true)
+                // Ưu tiên các Siêu thị / Điểm bán đã liên kết với Hợp Tác Xã (isLinked === true), nếu chưa liên kết thì hiển thị tất cả
                 const linkedOnly = data.filter((r) => r.isLinked);
-                setRetailers(linkedOnly);
+                const availableRetailers = linkedOnly.length > 0 ? linkedOnly : data;
+                setRetailers(availableRetailers);
 
-                if (linkedOnly.length > 0) {
+                if (availableRetailers.length > 0) {
                     setForm((prev) => ({
                         ...prev,
-                        retailerId: linkedOnly[0].retailerId,
-                        destination: linkedOnly[0].fullName || prev.destination,
+                        retailerId: availableRetailers[0].retailerId,
+                        destination: availableRetailers[0].fullName || prev.destination,
                     }));
                 } else {
                     setForm((prev) => ({
@@ -275,7 +279,7 @@ export const CreateShipmentModal: React.FC<Props> = ({
                                                 {onOpenQrModal && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => onOpenQrModal()}
+                                                        onClick={() => onOpenQrModal(selectedBatchId)}
                                                         className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                                                     >
                                                         <QrCode className="w-3.5 h-3.5" />

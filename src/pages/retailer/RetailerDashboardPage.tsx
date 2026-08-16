@@ -270,7 +270,7 @@ export const RetailerDashboardPage: React.FC = () => {
                             <button
                                 onClick={() => handleReceiveShipment(item)}
                                 disabled={isActionLoading}
-                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                                 title="Xác nhận tiếp nhận hàng vào kho siêu thị"
                             >
                                 {isActionLoading ? (
@@ -278,7 +278,7 @@ export const RetailerDashboardPage: React.FC = () => {
                                 ) : (
                                     <Truck className="w-3.5 h-3.5 shrink-0" />
                                 )}
-                                <span>Tiếp nhận kho</span>
+                                <span className="leading-none">Tiếp nhận kho</span>
                             </button>
                         )}
 
@@ -287,7 +287,7 @@ export const RetailerDashboardPage: React.FC = () => {
                             <button
                                 onClick={() => handleReadyForSale(item)}
                                 disabled={isActionLoading}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                                 title="Đưa sản phẩm lên kệ sẵn sàng bán lẻ"
                             >
                                 {isActionLoading ? (
@@ -295,28 +295,28 @@ export const RetailerDashboardPage: React.FC = () => {
                                 ) : (
                                     <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
                                 )}
-                                <span>Đưa lên kệ</span>
+                                <span className="leading-none">Đưa lên kệ</span>
                             </button>
                         )}
 
                         {/* 3. Xem tem / QR truy xuất */}
                         <button
                             onClick={() => setSelectedShipmentForQr(item)}
-                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200"
+                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200"
                             title="Xem trước Mã QR tem truy xuất sản phẩm"
                         >
                             <QrCode className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                            <span>Mã QR</span>
+                            <span className="leading-none">Mã QR</span>
                         </button>
 
                         {/* 4. Xem Blockchain Hash */}
                         <button
                             onClick={() => setSelectedShipmentForHash(item)}
-                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-indigo-200"
+                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer border border-indigo-200"
                             title="Xem bằng chứng Blockchain Hash & Smart Contract"
                         >
                             <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                            <span>Hash</span>
+                            <span className="leading-none">Hash</span>
                         </button>
                     </div>
                 );
@@ -355,7 +355,7 @@ export const RetailerDashboardPage: React.FC = () => {
                         <AppButton
                             variant="grey"
                             className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm cursor-pointer"
-                            leftIcon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />}
+                            leftIcon={<RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />}
                             onClick={fetchShipments}
                         >
                             Làm mới
@@ -532,10 +532,10 @@ export const RetailerDashboardPage: React.FC = () => {
                                 const dummyQr = shipments[0] ? getBatchCode(shipments[0]) : 'DEMO-BATCH-001';
                                 navigate(`/trace/${dummyQr}`);
                             }}
-                            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                            className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold rounded-xl text-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
                         >
-                            <ExternalLink className="w-4 h-4" />
-                            <span>Thử nghiệm Cổng Truy Xuất Công Khai</span>
+                            <ExternalLink className="w-4 h-4 shrink-0" />
+                            <span className="leading-none">Thử nghiệm Cổng Truy Xuất Công Khai</span>
                         </button>
                     </div>
                 </div>
@@ -583,9 +583,9 @@ export const RetailerDashboardPage: React.FC = () => {
                                 <span className="truncate">{`${window.location.origin}/trace/${getBatchCode(selectedShipmentForQr)}`}</span>
                                 <button
                                     onClick={() => handleCopyHash(`${window.location.origin}/trace/${getBatchCode(selectedShipmentForQr)}`)}
-                                    className="p-1 text-emerald-700 hover:bg-emerald-100 rounded cursor-pointer shrink-0"
+                                    className="p-1 text-emerald-700 hover:bg-emerald-100 rounded cursor-pointer shrink-0 inline-flex items-center justify-center"
                                 >
-                                    <Copy className="w-3.5 h-3.5" />
+                                    <Copy className="w-3.5 h-3.5 shrink-0" />
                                 </button>
                             </div>
                         </div>
@@ -595,10 +595,10 @@ export const RetailerDashboardPage: React.FC = () => {
                                 href={`/trace/${getBatchCode(selectedShipmentForQr)}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors"
                             >
-                                <ExternalLink className="w-4 h-4" />
-                                <span>Mở trang giao diện Người Tiêu Dùng</span>
+                                <ExternalLink className="w-4 h-4 shrink-0" />
+                                <span className="leading-none">Mở trang giao diện Người Tiêu Dùng</span>
                             </a>
                         </div>
                     </div>

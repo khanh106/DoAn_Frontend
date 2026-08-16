@@ -265,12 +265,11 @@ export const ReceiveShipmentPage: React.FC = () => {
                         {!item.receivedDate && (
                             <AppButton
                                 size="sm"
-                                variant="primary"
+                                variant="green"
                                 isLoading={isLoading}
                                 onClick={() => setReceivingShipment(item)}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                leftIcon={<PackageCheck className="w-4 h-4 shrink-0" />}
                             >
-                                <PackageCheck className="w-3.5 h-3.5 mr-1" />
                                 Tiếp nhận
                             </AppButton>
                         )}
@@ -279,12 +278,11 @@ export const ReceiveShipmentPage: React.FC = () => {
                         {item.receivedDate && !item.readyForSaleDate && (
                             <AppButton
                                 size="sm"
-                                variant="secondary"
+                                variant="orange"
                                 isLoading={isLoading}
                                 onClick={() => setReadyingShipment(item)}
-                                className="bg-amber-500 hover:bg-amber-600 text-white border-amber-500 font-bold"
+                                leftIcon={<ShoppingBag className="w-4 h-4 shrink-0" />}
                             >
-                                <ShoppingBag className="w-3.5 h-3.5 mr-1" />
                                 Lên kệ bán
                             </AppButton>
                         )}
@@ -293,9 +291,9 @@ export const ReceiveShipmentPage: React.FC = () => {
                         <button
                             onClick={() => setDetailShipment(item)}
                             title="Xem chi tiết & Proof Blockchain"
-                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center border border-slate-200"
                         >
-                            <Info className="w-4 h-4" />
+                            <Info className="w-4 h-4 shrink-0" />
                         </button>
                     </div>
                 );
@@ -319,8 +317,13 @@ export const ReceiveShipmentPage: React.FC = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <AppButton variant="outline" size="sm" onClick={() => void fetchShipments()} isLoading={loading}>
-                        <RefreshCw className="w-4 h-4 mr-1.5" />
+                    <AppButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void fetchShipments()}
+                        isLoading={loading}
+                        leftIcon={<RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />}
+                    >
                         Tải lại
                     </AppButton>
                 </div>
@@ -413,13 +416,12 @@ export const ReceiveShipmentPage: React.FC = () => {
                                 Hủy bỏ
                             </AppButton>
                             <AppButton
-                                variant="primary"
+                                variant="green"
                                 size="sm"
                                 isLoading={actionLoadingId === receivingShipment.id}
                                 onClick={() => void handleConfirmReceive()}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                leftIcon={<CheckCircle2 className="w-4 h-4 shrink-0" />}
                             >
-                                <CheckCircle2 className="w-4 h-4 mr-1.5" />
                                 Xác nhận Tiếp nhận
                             </AppButton>
                         </>
@@ -474,13 +476,12 @@ export const ReceiveShipmentPage: React.FC = () => {
                                 Hủy bỏ
                             </AppButton>
                             <AppButton
-                                variant="primary"
+                                variant="orange"
                                 size="sm"
                                 isLoading={actionLoadingId === readyingShipment.id}
                                 onClick={() => void handleConfirmReadyForSale()}
-                                className="bg-amber-500 hover:bg-amber-600 text-white font-bold"
+                                leftIcon={<Sparkles className="w-4 h-4 shrink-0" />}
                             >
-                                <Sparkles className="w-4 h-4 mr-1.5" />
                                 Xác nhận Đưa lên kệ
                             </AppButton>
                         </>
@@ -569,10 +570,10 @@ export const ReceiveShipmentPage: React.FC = () => {
                                         {detailShipment.shipTransactionHash && (
                                             <button
                                                 onClick={() => handleCopyHash(detailShipment.shipTransactionHash!)}
-                                                className="text-indigo-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                                                className="text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold cursor-pointer"
                                             >
-                                                <Copy className="w-3 h-3" />
-                                                {copiedHash === detailShipment.shipTransactionHash ? 'Đã sao chép!' : 'Copy'}
+                                                <Copy className="w-3 h-3 shrink-0" />
+                                                <span>{copiedHash === detailShipment.shipTransactionHash ? 'Đã sao chép!' : 'Copy'}</span>
                                             </button>
                                         )}
                                     </div>
@@ -588,10 +589,10 @@ export const ReceiveShipmentPage: React.FC = () => {
                                         {detailShipment.receiveTransactionHash && (
                                             <button
                                                 onClick={() => handleCopyHash(detailShipment.receiveTransactionHash!)}
-                                                className="text-indigo-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                                                className="text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold cursor-pointer"
                                             >
-                                                <Copy className="w-3 h-3" />
-                                                {copiedHash === detailShipment.receiveTransactionHash ? 'Đã sao chép!' : 'Copy'}
+                                                <Copy className="w-3 h-3 shrink-0" />
+                                                <span>{copiedHash === detailShipment.receiveTransactionHash ? 'Đã sao chép!' : 'Copy'}</span>
                                             </button>
                                         )}
                                     </div>
@@ -607,10 +608,10 @@ export const ReceiveShipmentPage: React.FC = () => {
                                         {detailShipment.readyTransactionHash && (
                                             <button
                                                 onClick={() => handleCopyHash(detailShipment.readyTransactionHash!)}
-                                                className="text-indigo-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                                                className="text-indigo-600 hover:underline inline-flex items-center gap-1 font-semibold cursor-pointer"
                                             >
-                                                <Copy className="w-3 h-3" />
-                                                {copiedHash === detailShipment.readyTransactionHash ? 'Đã sao chép!' : 'Copy'}
+                                                <Copy className="w-3 h-3 shrink-0" />
+                                                <span>{copiedHash === detailShipment.readyTransactionHash ? 'Đã sao chép!' : 'Copy'}</span>
                                             </button>
                                         )}
                                     </div>
@@ -636,9 +637,10 @@ export const ReceiveShipmentPage: React.FC = () => {
                                 href={`/trace/${detailShipment.batchCode || detailShipment.subBatchCode}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-colors"
                             >
-                                Tra cứu <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Tra cứu</span>
+                                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                             </a>
                         </div>
                     </div>

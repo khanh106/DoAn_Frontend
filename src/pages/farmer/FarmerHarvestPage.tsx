@@ -105,6 +105,9 @@ export const FarmerHarvestPage: React.FC = () => {
                 notes: notes.trim() || undefined,
             });
             setHarvestResult(res);
+            // Đóng form thu hoạch ngay khi API trả về thành công để tránh form vẫn hiển thị
+            // phía sau modal thông báo kết quả.
+            setSelectedBatch(null);
             await loadBatches();
         } catch (err: any) {
             console.error('Lỗi xác nhận thu hoạch:', err);
@@ -367,10 +370,10 @@ export const FarmerHarvestPage: React.FC = () => {
 
             {/* MODAL FORM XÁC NHẬN THU HOẠCH & KÝ BLOCKCHAIN */}
             {selectedBatch && (
-                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
-                        {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white p-6 relative">
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+                    <div className="bg-white rounded-none sm:rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 my-0 sm:my-8 flex flex-col max-h-screen sm:max-h-[90vh]">
+                        {/* Modal Header - sticky */}
+                        <div className="bg-gradient-to-r from-emerald-800 to-green-700 text-white p-6 relative shrink-0">
                             <button
                                 onClick={() => setSelectedBatch(null)}
                                 className="absolute right-4 top-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
@@ -387,113 +390,115 @@ export const FarmerHarvestPage: React.FC = () => {
                             </p>
                         </div>
 
-                        {/* Form Body */}
-                        <form onSubmit={handleConfirmHarvest} className="p-6 space-y-5">
-                            {errorMsg && (
-                                <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700 text-xs">
-                                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="font-bold">Lỗi xác nhận thu hoạch:</p>
-                                        <p>{errorMsg}</p>
+                        {/* Form Body - scroll bên trong */}
+                        <form onSubmit={handleConfirmHarvest} className="flex flex-col flex-1 min-h-0">
+                            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                                {errorMsg && (
+                                    <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700 text-xs">
+                                        <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="font-bold">Lỗi xác nhận thu hoạch:</p>
+                                            <p>{errorMsg}</p>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Thông tin thời gian */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                    Ngày & Giờ thu hoạch thực tế <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    required
-                                    value={harvestDate}
-                                    onChange={(e) => setHarvestDate(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
-                                />
-                            </div>
-
-                            {/* Sản lượng & Đơn vị */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* Thông tin thời gian */}
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                        Sản lượng thu hoạch thực tế <span className="text-red-500">*</span>
+                                        Ngày & Giờ thu hoạch thực tế <span className="text-red-500">*</span>
                                     </label>
                                     <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0.1"
+                                        type="datetime-local"
                                         required
-                                        placeholder="Ví dụ: 500"
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                                        value={harvestDate}
+                                        onChange={(e) => setHarvestDate(e.target.value)}
                                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
                                     />
                                 </div>
 
+                                {/* Sản lượng & Đơn vị */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Sản lượng thu hoạch thực tế <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0.1"
+                                            required
+                                            placeholder="Ví dụ: 500"
+                                            value={quantity}
+                                            onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Đơn vị tính <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            value={unit}
+                                            onChange={(e) => setUnit(e.target.value)}
+                                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
+                                        >
+                                            <option value="Kg">Kg (Kilogram)</option>
+                                            <option value="Tấn">Tấn</option>
+                                            <option value="Tạ">Tạ</option>
+                                            <option value="Thùng">Thùng</option>
+                                            <option value="Hộp">Hộp</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Đánh giá chất lượng ban đầu */}
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                        Đơn vị tính <span className="text-red-500">*</span>
+                                        Đánh giá chất lượng ban đầu <span className="text-red-500">*</span>
                                     </label>
                                     <select
-                                        value={unit}
-                                        onChange={(e) => setUnit(e.target.value)}
+                                        value={initialQuality}
+                                        onChange={(e) => setInitialQuality(e.target.value)}
                                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
                                     >
-                                        <option value="Kg">Kg (Kilogram)</option>
-                                        <option value="Tấn">Tấn</option>
-                                        <option value="Tạ">Tạ</option>
-                                        <option value="Thùng">Thùng</option>
-                                        <option value="Hộp">Hộp</option>
+                                        <option value="Loại 1 (Xuất khẩu)">Loại 1 (Xuất khẩu - Đạt chuẩn cao nhất)</option>
+                                        <option value="Loại 2 (Tiêu chuẩn)">Loại 2 (Tiêu chuẩn thị trường nội địa)</option>
+                                        <option value="Loại 3 (Chế biến)">Loại 3 (Dùng làm nguyên liệu chế biến)</option>
+                                        <option value="Đạt chuẩn VietGAP">Đạt chuẩn VietGAP</option>
+                                        <option value="Đạt chuẩn GlobalGAP">Đạt chuẩn GlobalGAP</option>
                                     </select>
                                 </div>
-                            </div>
 
-                            {/* Đánh giá chất lượng ban đầu */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                    Đánh giá chất lượng ban đầu <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={initialQuality}
-                                    onChange={(e) => setInitialQuality(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
-                                >
-                                    <option value="Loại 1 (Xuất khẩu)">Loại 1 (Xuất khẩu - Đạt chuẩn cao nhất)</option>
-                                    <option value="Loại 2 (Tiêu chuẩn)">Loại 2 (Tiêu chuẩn thị trường nội địa)</option>
-                                    <option value="Loại 3 (Chế biến)">Loại 3 (Dùng làm nguyên liệu chế biến)</option>
-                                    <option value="Đạt chuẩn VietGAP">Đạt chuẩn VietGAP</option>
-                                    <option value="Đạt chuẩn GlobalGAP">Đạt chuẩn GlobalGAP</option>
-                                </select>
-                            </div>
-
-                            {/* Ghi chú thêm */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                    Ghi chú / Nhận xét thu hoạch
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    placeholder="Nhập ghi chú điều kiện thời tiết, màu sắc quả, độ đường..."
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
-                                />
-                            </div>
-
-                            {/* Lưu ý Smart contract */}
-                            <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl text-emerald-900 text-xs space-y-1">
-                                <div className="font-bold flex items-center gap-1.5 text-emerald-800">
-                                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                                    Cơ chế Bảo mật & Minh bạch Blockchain:
+                                {/* Ghi chú thêm */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Ghi chú / Nhận xét thu hoạch
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        placeholder="Nhập ghi chú điều kiện thời tiết, màu sắc quả, độ đường..."
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
+                                    />
                                 </div>
-                                <p className="text-emerald-700">
-                                    Khi bấm xác nhận, hệ thống sẽ gom toàn bộ nhật ký canh tác của lô, tải lên <strong>IPFS Decentralized Storage</strong> và ký giao dịch <code>harvestBatch</code> trực tiếp trên Blockchain bằng ví điện tử của Người đại diện.
-                                </p>
+
+                                {/* Lưu ý Smart contract */}
+                                <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl text-emerald-900 text-xs space-y-1">
+                                    <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                                        Cơ chế Bảo mật & Minh bạch Blockchain:
+                                    </div>
+                                    <p className="text-emerald-700">
+                                        Khi bấm xác nhận, hệ thống sẽ gom toàn bộ nhật ký canh tác của lô, tải lên <strong>IPFS Decentralized Storage</strong> và ký giao dịch <code>harvestBatch</code> trực tiếp trên Blockchain bằng ví điện tử của Người đại diện.
+                                    </p>
+                                </div>
                             </div>
 
-                            {/* Buttons */}
-                            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                            {/* Footer - sticky ở dưới cùng */}
+                            <div className="flex items-center justify-end gap-3 p-4 sm:p-6 pt-4 border-t border-slate-100 bg-white shrink-0">
                                 <button
                                     type="button"
                                     onClick={() => setSelectedBatch(null)}

@@ -16,6 +16,7 @@ import {
     Calendar,
     MapPin,
     FileText,
+    Eye,
 } from 'lucide-react';
 import { AppTable, type Column } from '../../components/ui/AppTable';
 import {
@@ -26,8 +27,8 @@ import {
 } from '../../services/shippingAndQrService';
 import { processorService, type BatchDto } from '../../services/processorService';
 import { CreateShipmentModal } from './modals/CreateShipmentModal';
-
 import { GenerateQRCodeModal } from './modals/GenerateQRCodeModal';
+import { QRCodeDetailModal } from './modals/QRCodeDetailModal';
 import { AxiosError } from 'axios';
 import { toast } from '../../utils/toast';
 
@@ -48,8 +49,8 @@ export const QRCodeAndShippingPage: React.FC = () => {
 
     // Modals Control
     const [showShipmentModal, setShowShipmentModal] = useState<boolean>(false);
-
     const [showQrModal, setShowQrModal] = useState<boolean>(false);
+    const [selectedQrDetail, setSelectedQrDetail] = useState<QRCodeInfoDto | null>(null);
     const [selectedBatchId, setSelectedBatchId] = useState<string>('');
 
     // Tải danh sách lô sản xuất
@@ -439,6 +440,21 @@ export const QRCodeAndShippingPage: React.FC = () => {
                 </span>
             ),
         },
+        {
+            header: 'Thao tác',
+            key: 'actions',
+            align: 'center',
+            render: (item) => (
+                <button
+                    onClick={() => setSelectedQrDetail(item)}
+                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                    title="Xem chi tiết mã QR"
+                >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Chi tiết</span>
+                </button>
+            ),
+        },
     ];
 
 
@@ -566,10 +582,13 @@ export const QRCodeAndShippingPage: React.FC = () => {
             {showShipmentModal && (
                 <CreateShipmentModal
                     batchId={selectedBatchId}
-                    batches={batches} // <--- THÊM DÒNG NÀY
+                    batches={batches}
                     onClose={() => setShowShipmentModal(false)}
-                    onOpenQrModal={() => {
+                    onOpenQrModal={(targetBatchId) => {
                         // Đóng modal tạo đơn vận hiện tại rồi mở modal sinh QR cho cùng lô đang chọn
+                        if (targetBatchId) {
+                            setSelectedBatchId(targetBatchId);
+                        }
                         setShowShipmentModal(false);
                         setShowQrModal(true);
                     }}
@@ -597,6 +616,15 @@ export const QRCodeAndShippingPage: React.FC = () => {
                         setShowQrModal(false);
                         void loadTabData();
                     }}
+                />
+            )}
+
+            {/* Modal xem chi tiết mã QR */}
+            {selectedQrDetail && (
+                <QRCodeDetailModal
+                    qr={selectedQrDetail}
+                    batch={batches.find((b) => b.id === selectedQrDetail.targetId)}
+                    onClose={() => setSelectedQrDetail(null)}
                 />
             )}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { translateStage } from '../../types';
 
@@ -14,25 +14,27 @@ import {
     Award,
     Database,
     AlertTriangle,
-    Package,
     Leaf,
     Scissors,
-    ClipboardCheck,
-    Users,
-    Cog,
-    BoxSelect,
-    Image as ImageIcon,
     ShieldCheck,
     ExternalLink,
-    Boxes,
-    Store,
-    Clock,
     ChevronDown,
     ChevronUp,
     Copy,
     Check,
     Activity,
-    Map
+    Share2,
+    Printer,
+    Sparkles,
+    Maximize2,
+    X,
+    Cpu,
+    ArrowRight,
+    Layers,
+    Store,
+    Clock,
+    Camera,
+    Image as ImageIcon
 } from 'lucide-react';
 import {
     traceabilityService,
@@ -45,11 +47,19 @@ import { resolveIpfsUrl } from '../../services/ipfsService';
 /* ─────── Helper function to format TxHash and Wallet Address ─────── */
 const formatHash = (hash: string | undefined): string => {
     if (!hash) return '';
-    if (hash.length <= 12) return hash;
-    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+    if (hash.length <= 14) return hash;
+    return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
 };
 
-/* ─────── Main Component ─────── */
+interface ProductPhotoItem {
+    url: string;
+    logDate: string;
+    worker: string;
+    activity: string;
+    isHarvestPhoto: boolean;
+}
+
+/* ─────── Main Traceability Component ─────── */
 export const TraceabilityPage: React.FC = () => {
     const { qrCode: urlParamCode } = useParams<{ qrCode?: string }>();
 
@@ -59,20 +69,26 @@ export const TraceabilityPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [showVietGapModal, setShowVietGapModal] = useState<boolean>(false);
     const [showQrModal, setShowQrModal] = useState<boolean>(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [activePhotoIdx, setActivePhotoIdx] = useState<number>(0);
 
     // Quản lý hiển thị danh sách nhật ký
     const [showAllLogs, setShowAllLogs] = useState<boolean>(false);
-    // Quản lý copy giao dịch
+    // Quản lý copy trạng thái
     const [copiedTx, setCopiedTx] = useState<string | null>(null);
-    // Quản lý Tabs trên giao diện Mobile
-    const [activeTab, setActiveTab] = useState<'journey' | 'blockchain'>('journey');
+    const [copiedCode, setCopiedCode] = useState<boolean>(false);
+    const [copiedShareLink, setCopiedShareLink] = useState<boolean>(false);
+
+    // Các mã gợi ý để người dùng test nhanh
+    const sampleCodes = ['SUB-001', 'BATCH-2026-001', 'SUB-2026-001'];
 
     const handleTrace = useCallback(async (codeToSearch: string) => {
         if (!codeToSearch.trim()) return;
         setLoading(true);
         setError(null);
+        setActivePhotoIdx(0);
         try {
-            const data = await traceabilityService.getTraceabilityInfo(codeToSearch);
+            const data = await traceabilityService.getTraceabilityInfo(codeToSearch.trim());
             setTraceData(data);
         } catch (err) {
             const axiosErr = err as AxiosError<{ message?: string }>;
@@ -89,11 +105,8 @@ export const TraceabilityPage: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        // Đọc mã code từ URL query parameter "?code=..." của mã QR thật
         const urlParams = new URLSearchParams(window.location.search);
         const queryCode = urlParams.get('code');
-
-        // Ưu tiên đường dẫn dạng /trace/:qrCode, sau đó tới query parameter ?code=...
         const codeToSearch = urlParamCode || queryCode || '';
 
         if (codeToSearch.trim()) {
@@ -109,334 +122,586 @@ export const TraceabilityPage: React.FC = () => {
         setTimeout(() => setCopiedTx(null), 2000);
     };
 
+    // Sao chép mã sản phẩm
+    const handleCopyCode = (code: string) => {
+        navigator.clipboard.writeText(code);
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2000);
+    };
+
+    // Chia sẻ trang
+    const handleShare = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: `Truy xuất nguồn gốc: ${traceData?.targetInfo.productName || 'FruitChain'}`,
+                text: `Tra cứu thông tin nguồn gốc blockchain sản phẩm ${traceData?.targetInfo.code || ''}`,
+                url: window.location.href
+            }).catch(() => { });
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            setCopiedShareLink(true);
+            setTimeout(() => setCopiedShareLink(false), 2500);
+        }
+    };
+
     // Ánh xạ thứ tự trạng thái từ contract
     const getStageOrder = (stage: string | undefined): number => {
         if (!stage) return 0;
         const s = stage.toUpperCase().trim();
-        if (s.includes('PLANTING') || s.includes('CREATED') || s.includes('ACCEPTED')) return 1;
-        if (s.includes('HARVESTED')) return 2;
+        if (s.includes('PLANTING') || s.includes('CREATED') || s.includes('ACCEPTED') || s.includes('CANH_TAC')) return 1;
+        if (s.includes('HARVESTED') || s.includes('THU_HOACH')) return 2;
         if (s.includes('RECEIVED') && !s.includes('RETAILER')) return 3;
-        if (s.includes('PROCESSED')) return 4;
-        if (s.includes('SORTED')) return 5;
-        if (s.includes('INSPECT')) return 6;
-        if (s.includes('PACKAGED')) return 7;
-        if (s.includes('SHIPP') || s.includes('TRANSIT')) return 8;
-        if (s.includes('RETAILER')) return 9;
-        if (s.includes('SALE') || s.includes('READY')) return 10;
+        if (s.includes('PROCESSED') || s.includes('CHE_BIEN')) return 4;
+        if (s.includes('SORTED') || s.includes('PHAN_LOAI')) return 5;
+        if (s.includes('INSPECT') || s.includes('KIEM_DINH')) return 6;
+        if (s.includes('PACKAGED') || s.includes('DONG_GOI')) return 7;
+        if (s.includes('SHIPP') || s.includes('TRANSIT') || s.includes('VAN_CHUYEN')) return 8;
+        if (s.includes('RETAILER') || s.includes('DAI_LY')) return 9;
+        if (s.includes('SALE') || s.includes('READY') || s.includes('LEN_KE')) return 10;
         return 0;
     };
 
-    // Hàm trả về trạng thái của từng bước supply chain (completed / active / pending)
     const getStepStatus = (stepId: number, currentStage: string | undefined) => {
         const order = getStageOrder(currentStage);
         let stepRank = 1;
         switch (stepId) {
             case 1: stepRank = 1; break; // Vùng trồng
-            case 2: stepRank = 1; break; // Nhật ký chăm sóc (chạy song song lúc trồng)
+            case 2: stepRank = 1; break; // Nhật ký chăm sóc
             case 3: stepRank = 2; break; // Thu hoạch
-            case 4: stepRank = 3; break; // HTX tiếp nhận & sơ chế
-            case 5: stepRank = 5; break; // Phân loại
-            case 6: stepRank = 6; break; // Kiểm định
-            case 7: stepRank = 7; break; // Đóng gói
-            case 8: stepRank = 8; break; // Vận chuyển
-            case 9: stepRank = 9; break; // Điểm bán & Lên kệ
+            case 4: stepRank = 3; break; // HTX tiếp nhận & Sơ chế
+            case 5: stepRank = 6; break; // Kiểm định & Đóng gói
+            case 6: stepRank = 8; break; // Vận chuyển & Phân phối
         }
 
         if (order > stepRank) return 'completed';
         if (order === stepRank) return 'active';
-
-        // Điều kiện đặc biệt cho Nhật ký chăm sóc
-        if (stepId === 2) {
-            if (order > 1) return 'completed';
-            if (order === 1) return 'active';
-        }
         return 'pending';
     };
 
-    // Tính toán tiến trình
     const currentOrder = traceData ? getStageOrder(traceData.targetInfo.currentStage) : 0;
     const progressPercent = Math.min(Math.round((currentOrder / 9) * 100), 100);
 
-    const getNode4Status = (): 'completed' | 'active' | 'pending' => {
-        if (currentOrder > 7) return 'completed';
-        if (currentOrder >= 3) return 'active';
-        return 'pending';
+    // ─── TỔNG HỢP ẢNH THỰC TẾ CỦA SẢN PHẨM (ƯU TIÊN ẢNH LÚC THU HOẠCH) ───
+    const getAllProductRealPhotos = (): ProductPhotoItem[] => {
+        if (!traceData) return [];
+        const photos: ProductPhotoItem[] = [];
+
+        // 1. Tìm các ảnh trong nhật ký canh tác có hoạt động "Thu hoạch" / "Harvest" / "Hái"
+        (traceData.cultivationLogs || []).forEach((log) => {
+            const isHarvest =
+                log.activity.toLowerCase().includes('thu hoạch') ||
+                log.activity.toLowerCase().includes('harvest') ||
+                log.activity.toLowerCase().includes('hái');
+
+            (log.images || []).forEach((img) => {
+                const resolved = resolveIpfsUrl(img);
+                if (resolved && !photos.some((p) => p.url === resolved)) {
+                    photos.push({
+                        url: resolved,
+                        logDate: log.date,
+                        worker: log.worker,
+                        activity: log.activity,
+                        isHarvestPhoto: isHarvest
+                    });
+                }
+            });
+        });
+
+        // 2. Ảnh từ giai đoạn đóng gói (nếu có)
+        if (traceData.packaging?.imageUrl) {
+            const pkgResolved = resolveIpfsUrl(traceData.packaging.imageUrl);
+            if (pkgResolved && !photos.some((p) => p.url === pkgResolved)) {
+                photos.push({
+                    url: pkgResolved,
+                    logDate: traceData.packaging.packDate,
+                    worker: 'Tổ đóng gói HTX',
+                    activity: 'Đóng gói thương phẩm',
+                    isHarvestPhoto: false
+                });
+            }
+        }
+
+        // Sắp xếp: Ưu tiên ảnh thu hoạch lên đầu danh sách
+        photos.sort((a, b) => (b.isHarvestPhoto ? 1 : 0) - (a.isHarvestPhoto ? 1 : 0));
+        return photos;
     };
 
-    const getNode5Status = (): 'completed' | 'active' | 'pending' => {
-        if (currentOrder >= 9) return 'completed';
-        if (currentOrder === 8) return 'active';
-        return 'pending';
-    };
+    const productPhotos = getAllProductRealPhotos();
+    const harvestOnlyPhotos = productPhotos.filter((p) => p.isHarvestPhoto);
 
-    // Helper function to render product card
-    const renderProductCard = () => {
-        if (!traceData) return null;
+    // Ảnh chính hiển thị
+    const currentHeroPhoto = productPhotos.length > 0
+        ? productPhotos[Math.min(activePhotoIdx, productPhotos.length - 1)]
+        : null;
 
-        // Tìm ảnh thu hoạch từ nhật ký canh tác (hoặc ảnh bất kỳ của nhật ký làm fallback)
-        const harvestLog = traceData.cultivationLogs.find(
-            (log) => log.activity.toLowerCase().includes('thu hoạch') || log.activity.toLowerCase().includes('harvest')
-        );
-        const harvestImage = harvestLog && harvestLog.images && harvestLog.images.length > 0
-            ? resolveIpfsUrl(harvestLog.images[0])
-            : '';
-
-        const anyLogWithImage = traceData.cultivationLogs.find(
-            (log) => log.images && log.images.length > 0
-        );
-        const logFallbackImage = anyLogWithImage && anyLogWithImage.images && anyLogWithImage.images.length > 0
-            ? resolveIpfsUrl(anyLogWithImage.images[0])
-            : '';
-
-        const packagingImage = traceData.packaging?.imageUrl
-            ? resolveIpfsUrl(traceData.packaging.imageUrl)
-            : '';
-
-        const finalProductImage = harvestImage || logFallbackImage || packagingImage;
-
-        return (
-            <div className="trace-hero-card">
-                {finalProductImage ? (
-                    <div className="trace-hero-img-wrap">
-                        <img
-                            src={finalProductImage}
-                            alt={traceData.targetInfo.productName}
-                            className="trace-hero-img"
-                        />
-                    </div>
-                ) : (
-                    <div className="trace-hero-img-placeholder">
-                        <QrCode className="w-16 h-16 text-emerald-400 opacity-70" />
-                    </div>
-                )}
-                <div className="trace-hero-info">
-                    <span className="trace-hero-type-badge">
-                        {traceData.targetInfo.type === 'SUBBATCH' ? 'Lô Con (Sub-batch)' : 'Lô Gốc (Batch)'}
-                    </span>
-                    <h2 className="trace-hero-name">{traceData.targetInfo.productName}</h2>
-
-                    <div className="trace-hero-details">
-                        <div className="trace-hero-detail-row">
-                            <span className="trace-hero-label">Phân Loại Trái Cây:</span>
-                            <span className="trace-hero-value">{traceData.targetInfo.fruitType}</span>
-                        </div>
-                        <div className="trace-hero-detail-row">
-                            <span className="trace-hero-label">Định danh QR Code:</span>
-                            <span className="trace-hero-value font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px] font-bold text-slate-800">{traceData.targetInfo.code}</span>
-                        </div>
-                        {traceData.parentBatch && (
-                            <>
-                                <div className="trace-hero-detail-row">
-                                    <span className="trace-hero-label">Liên kết Lô gốc:</span>
-                                    <span className="trace-hero-value font-mono text-[11px] font-bold text-slate-700">{traceData.parentBatch.batchCode}</span>
-                                </div>
-                                <div className="trace-hero-detail-row">
-                                    <span className="trace-hero-label">Ngày xuống giống:</span>
-                                    <span className="trace-hero-value">{new Date(traceData.parentBatch.plantingDate).toLocaleDateString('vi-VN')}</span>
-                                </div>
-                            </>
-                        )}
-                        <div className="trace-hero-detail-row trace-coop-row">
-                            <span className="trace-hero-label">Đơn vị quản lý:</span>
-                            <span className="trace-hero-value flex items-center gap-1.5 font-bold text-slate-850">
-                                <img src="/logo_icon.png" alt="logo" className="w-3.5 h-3.5 object-contain" />
-                                {traceData.farmArea?.name ? (traceData.farmArea.name.includes("HTX") ? traceData.farmArea.name : `HTX ${traceData.farmArea.name}`) : 'Chưa cập nhật'}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Thanh Tiến Trình Cung Ứng */}
-                    <div className="trace-progress-container">
-                        <div className="trace-progress-text">
-                            <span>Trạng thái:</span>
-                            <strong className="text-emerald-700">{traceData.targetInfo.currentStage ? translateStage(traceData.targetInfo.currentStage) : 'Khởi tạo'} ({currentOrder}/9 bước)</strong>
-                        </div>
-                        <div className="trace-progress-bar-bg">
-                            <div className="trace-progress-bar-fill" style={{ width: `${progressPercent}%` }} />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
+    const heroImageUrl = currentHeroPhoto?.url || '/nhan_xuong_com_vang.png';
+    const isRealHarvestPhoto = currentHeroPhoto?.isHarvestPhoto ?? false;
 
     return (
-        <div className="trace-page">
-            <style>{tracePageStyles}</style>
+        <div className="trace-app-root">
+            <style>{traceModernStyles}</style>
 
-            {/* ──── HEADER ──── */}
-            <header className="trace-header">
-                <div className="trace-header-inner">
-                    <div className="trace-logo-group">
-                        <img src="/logo_icon.png" alt="FruitChain" className="trace-logo-img" />
-                        <span className="trace-logo-text">
-                            <span className="trace-logo-fruit">Fruit</span>
-                            <span className="trace-logo-chain">Chain</span>
-                        </span>
-                    </div>
-                    <h1 className="trace-page-title">TRUY XUẤT NGUỒN GỐC SẢN PHẨM</h1>
-                    <div className="trace-verified-badge">
-                        <CheckCircle2 className="w-5 h-5 text-white" />
-                        <div className="trace-verified-badge-text">
-                            <span>ĐÃ XÁC THỰC</span>
-                            <strong>BLOCKCHAIN</strong>
+            {/* ─────── TOP NAVIGATION BAR ─────── */}
+            <header className="trace-navbar">
+                <div className="trace-nav-container">
+                    <Link to="/" className="trace-brand-link">
+                        <div className="trace-brand-icon-box">
+                            <img src="/logo_icon.png" alt="FruitChain" className="trace-brand-img" />
                         </div>
+                        <div className="trace-brand-text-wrap">
+                            <span className="trace-brand-title">
+                                <span className="trace-brand-green">Fruit</span>
+                                <span className="trace-brand-gold">Chain</span>
+                            </span>
+                            <span className="trace-brand-sub">Hệ Thống Nông Sản Minh Bạch</span>
+                        </div>
+                    </Link>
+
+                    <div className="trace-nav-right">
+                        <div className="trace-blockchain-badge-pill">
+                            <span className="trace-pulse-dot" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="trace-badge-text">BLOCKCHAIN VERIFIED</span>
+                        </div>
+
+                        <button onClick={handleShare} className="trace-nav-action-btn" title="Chia sẻ trang này">
+                            {copiedShareLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
+                            <span className="hidden sm:inline">{copiedShareLink ? 'Đã chép link' : 'Chia sẻ'}</span>
+                        </button>
+
+                        <button onClick={() => window.print()} className="trace-nav-action-btn hidden md:flex" title="In phiếu nguồn gốc">
+                            <Printer className="w-4 h-4" />
+                            <span>In phiếu</span>
+                        </button>
                     </div>
                 </div>
             </header>
 
-            <main className="trace-main">
-                {/* ──── SEARCH BAR ──── */}
-                <div className="trace-search-bar">
-                    <div className="trace-input-wrapper">
-                        <input
-                            type="text"
-                            value={searchCode}
-                            onChange={(e) => setSearchCode(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && void handleTrace(searchCode)}
-                            placeholder="Nhập mã SubBatch / Batch / QR Code..."
-                            className="trace-search-input"
-                        />
-                    </div>
-                    <div className="trace-actions-wrapper">
-                        <button onClick={() => setShowQrModal(true)} className="trace-qr-btn">
-                            <QrCode className="w-4 h-4 text-emerald-400" />
-                            <span>Quét QR</span>
-                        </button>
-                        <button
-                            onClick={() => void handleTrace(searchCode)}
-                            disabled={loading}
-                            className="trace-search-btn"
-                        >
-                            <Search className="w-4 h-4" />
-                            <span>Tra cứu</span>
-                        </button>
-                    </div>
-                </div>
+            <main className="trace-body-container">
 
-                {/* ERROR */}
+                {/* ─────── HERO SEARCH & BANNER ─────── */}
+                <section className="trace-search-hero-card">
+                    <div className="trace-search-header-group">
+                        <span className="trace-tag-pill">
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                            Cổng Tra Cứu Chuỗi Cung Ứng Trực Tuyến
+                        </span>
+                        <h1 className="trace-main-heading">
+                            TRUY XUẤT NGUỒN GỐC NÔNG SẢN
+                        </h1>
+                        <p className="trace-sub-heading">
+                            Toàn bộ lịch sử từ đất trồng, ảnh chụp thực tế lúc thu hoạch, kiểm nghiệm VietGAP đến phân phối bán lẻ được xác thực bất biến bởi Smart Contract.
+                        </p>
+                    </div>
+
+                    {/* Search Input Bar */}
+                    <div className="trace-search-box-wrapper">
+                        <div className="trace-input-inner">
+                            <Search className="w-4 h-4 text-slate-400 shrink-0 ml-3" />
+                            <input
+                                type="text"
+                                value={searchCode}
+                                onChange={(e) => setSearchCode(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && void handleTrace(searchCode)}
+                                placeholder="Nhập mã Lô (Batch) hoặc quét QR..."
+                                className="trace-native-input"
+                            />
+                            {searchCode && (
+                                <button
+                                    onClick={() => setSearchCode('')}
+                                    className="trace-clear-btn"
+                                    title="Xoá nội dung"
+                                >
+                                    <X className="w-4 h-4 text-slate-400" />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="trace-search-buttons-group">
+                            <button
+                                onClick={() => setShowQrModal(true)}
+                                className="trace-scan-qr-btn"
+                                type="button"
+                            >
+                                <QrCode className="w-4 h-4 text-emerald-500" />
+                                <span>Quét QR</span>
+                            </button>
+                            <button
+                                onClick={() => void handleTrace(searchCode)}
+                                disabled={loading || !searchCode.trim()}
+                                className="trace-submit-btn"
+                                type="button"
+                            >
+                                {loading ? (
+                                    <span className="trace-inline-spinner" />
+                                ) : (
+                                    <Search className="w-4 h-4" />
+                                )}
+                                <span>Tra Cứu</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Sample Tags Bar */}
+                    <div className="trace-sample-tags-bar">
+                        <span className="trace-sample-title">Mã mẫu thử nghiệm:</span>
+                        <div className="trace-sample-list">
+                            {sampleCodes.map((code) => (
+                                <button
+                                    key={code}
+                                    type="button"
+                                    onClick={() => {
+                                        setSearchCode(code);
+                                        void handleTrace(code);
+                                    }}
+                                    className="trace-sample-chip"
+                                >
+                                    {code}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ─────── ERROR DISPLAY ─────── */}
                 {error && (
-                    <div className="trace-error">
-                        <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-                        <span>{error}</span>
+                    <div className="trace-alert-box error">
+                        <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                        <div className="trace-alert-content">
+                            <h4>Không tìm thấy kết quả</h4>
+                            <p>{error}</p>
+                        </div>
                     </div>
                 )}
 
-                {/* LOADING */}
-                {loading ? (
-                    <div className="trace-loading">
-                        <div className="trace-loading-spinner" />
-                        <span>Đang tải dữ liệu thực tế được chứng thực bởi Smart Contract Blockchain...</span>
+                {/* ─────── LOADING SKELETON / SPINNER ─────── */}
+                {loading && (
+                    <div className="trace-loading-card">
+                        <div className="trace-loading-pulse-logo">
+                            <img src="/logo_icon.png" alt="FruitChain" className="w-12 h-12 object-contain animate-bounce" />
+                        </div>
+                        <h3 className="text-slate-800 font-bold text-base mt-4">Đang đồng bộ dữ liệu Blockchain & IPFS...</h3>
+                        <p className="text-slate-500 text-xs text-center mt-1">
+                            Vui lòng chờ trong giây lát trong khi hệ thống truy xuất các bản ghi Smart Contract.
+                        </p>
                     </div>
-                ) : traceData ? (
-                    <div className="trace-main-container">
+                )}
 
-                        {/* PRODUCT HERO CARD (Hiển thị đầu tiên trên Mobile, ẩn trên PC) */}
-                        <div className="show-mobile-only w-full">
-                            {renderProductCard()}
+                {/* ─────── TRACE DATA PRESENTATION ─────── */}
+                {!loading && traceData && (
+                    <div className="trace-result-wrapper">
+
+                        {/* 1. PRODUCT MASTER HERO CARD */}
+                        <div className="trace-product-hero-container">
+                            <div className="trace-product-hero-grid">
+                                
+                                {/* Cột trái: Ảnh sản phẩm thực tế */}
+                                <div className="trace-product-media-column">
+                                    <div className="trace-product-image-card">
+                                        <img
+                                            src={heroImageUrl}
+                                            alt={traceData.targetInfo.productName}
+                                            className="trace-product-main-img"
+                                            onError={(e) => {
+                                                e.currentTarget.src = '/nhan_xuong_com_vang.png';
+                                            }}
+                                        />
+                                        
+                                        {/* Tag ảnh thực tế lúc thu hoạch */}
+                                        <div className={`trace-image-glass-tag ${isRealHarvestPhoto ? 'harvest-tag' : ''}`}>
+                                            {isRealHarvestPhoto ? (
+                                                <>
+                                                    <Camera className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                                                    <span className="text-amber-200 font-extrabold text-[11px]">📸 ẢNH THỰC TẾ LÚC THU HOẠCH</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Leaf className="w-3.5 h-3.5 text-emerald-400" />
+                                                    <span>Nông Sản Xác Thực</span>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setPreviewImage(heroImageUrl)}
+                                            className="trace-image-zoom-btn"
+                                            title="Xem ảnh phóng to"
+                                        >
+                                            <Maximize2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+
+                                    {/* Danh sách ảnh thực tế lúc thu hoạch (Thumbnail Strip) */}
+                                    {productPhotos.length > 1 && (
+                                        <div className="trace-hero-thumb-strip">
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="trace-thumb-strip-lbl">
+                                                    <Camera className="w-3 h-3 text-emerald-600 inline mr-1" />
+                                                    Ảnh thực tế vườn ({productPhotos.length} ảnh):
+                                                </span>
+                                            </div>
+                                            <div className="trace-hero-thumbs-list">
+                                                {productPhotos.map((photo, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => setActivePhotoIdx(idx)}
+                                                        className={`trace-hero-thumb-btn ${activePhotoIdx === idx ? 'active' : ''}`}
+                                                        title={`${photo.activity} - ${new Date(photo.logDate).toLocaleDateString('vi-VN')}`}
+                                                    >
+                                                        <img src={photo.url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
+                                                        {photo.isHarvestPhoto && (
+                                                            <span className="trace-thumb-harvest-indicator" title="Ảnh lúc thu hoạch">🌾</span>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Chú thích thông tin ảnh */}
+                                    {currentHeroPhoto && (
+                                        <div className="trace-photo-caption-card">
+                                            <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
+                                                <Camera className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                                <span className="truncate">{currentHeroPhoto.activity}</span>
+                                                <span className="text-slate-300">•</span>
+                                                <span className="text-slate-500 font-normal shrink-0">{new Date(currentHeroPhoto.logDate).toLocaleDateString('vi-VN')}</span>
+                                            </div>
+                                            <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                                Bởi: <strong className="text-slate-700">{currentHeroPhoto.worker}</strong> (Lưu trữ IPFS)
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Con dấu chứng nhận VietGAP */}
+                                    {traceData.inspection && (
+                                        <div
+                                            onClick={() => setShowVietGapModal(true)}
+                                            className="trace-vietgap-seal-card cursor-pointer"
+                                            role="button"
+                                            tabIndex={0}
+                                        >
+                                            <div className="trace-seal-icon-wrap">
+                                                <Award className="w-5 h-5 text-emerald-600" />
+                                            </div>
+                                            <div className="trace-seal-text min-w-0">
+                                                <span className="trace-seal-lbl">Chứng nhận chất lượng</span>
+                                                <strong className="trace-seal-val truncate">VietGAP Quốc Gia</strong>
+                                            </div>
+                                            <ArrowRight className="w-4 h-4 text-emerald-600 ml-auto shrink-0" />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Cột phải: Thông số sản phẩm & Tiến trình */}
+                                <div className="trace-product-info-column">
+                                    <div className="trace-product-title-row">
+                                        <span className="trace-batch-badge shrink-0">
+                                            {traceData.targetInfo.type === 'SUBBATCH' ? 'Lô Con (Thương phẩm)' : 'Lô Gốc (Canh tác)'}
+                                        </span>
+                                        <div className="trace-code-copy-pill" onClick={() => handleCopyCode(traceData.targetInfo.code)}>
+                                            <span className="text-slate-400 text-xs shrink-0">Mã QR:</span>
+                                            <strong className="font-mono text-xs text-slate-800 truncate">{traceData.targetInfo.code}</strong>
+                                            {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> : <Copy className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                                        </div>
+                                    </div>
+
+                                    <h2 className="trace-product-title">
+                                        {traceData.targetInfo.productName}
+                                    </h2>
+
+                                    {/* Bảng 4 thuộc tính sản phẩm */}
+                                    <div className="trace-attributes-grid">
+                                        <div className="trace-attr-item">
+                                            <span className="trace-attr-icon"><Leaf className="w-4 h-4 text-emerald-600" /></span>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="trace-attr-label">Chủng loại</span>
+                                                <strong className="trace-attr-val truncate">{traceData.targetInfo.fruitType}</strong>
+                                            </div>
+                                        </div>
+
+                                        <div className="trace-attr-item">
+                                            <span className="trace-attr-icon"><MapPin className="w-4 h-4 text-blue-600" /></span>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="trace-attr-label">Vùng canh tác</span>
+                                                <strong className="trace-attr-val truncate">{traceData.farmArea?.name || 'Vùng trồng ĐBSCL'}</strong>
+                                            </div>
+                                        </div>
+
+                                        <div className="trace-attr-item">
+                                            <span className="trace-attr-icon"><Calendar className="w-4 h-4 text-amber-600" /></span>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="trace-attr-label">Ngày thu hoạch</span>
+                                                <strong className="trace-attr-val truncate">
+                                                    {traceData.harvest?.harvestDate ? new Date(traceData.harvest.harvestDate).toLocaleDateString('vi-VN') : 'Đang canh tác'}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        <div className="trace-attr-item">
+                                            <span className="trace-attr-icon"><Store className="w-4 h-4 text-purple-600" /></span>
+                                            <div className="min-w-0 flex-1">
+                                                <span className="trace-attr-label">Hợp tác xã</span>
+                                                <strong className="trace-attr-val truncate">
+                                                    {traceData.farmArea?.name ? (traceData.farmArea.name.includes("HTX") ? traceData.farmArea.name : `HTX ${traceData.farmArea.name}`) : 'Hợp Tác Xã Nông Sản'}
+                                                </strong>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Thanh tiến trình chuỗi cung ứng (Stepper) */}
+                                    <div className="trace-stepper-card">
+                                        <div className="trace-stepper-header">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <Activity className="w-4 h-4 text-emerald-600 shrink-0" />
+                                                <span className="font-bold text-xs uppercase tracking-wider text-slate-700 truncate">Tiến trình chuỗi cung ứng</span>
+                                            </div>
+                                            <span className="trace-step-counter font-extrabold text-emerald-700 text-xs shrink-0">
+                                                {traceData.targetInfo.currentStage ? translateStage(traceData.targetInfo.currentStage) : 'Khởi tạo'} ({progressPercent}%)
+                                            </span>
+                                        </div>
+                                        <div className="trace-stepper-track">
+                                            <div
+                                                className="trace-stepper-fill"
+                                                style={{ width: `${progressPercent}%` }}
+                                            />
+                                        </div>
+                                        <div className="trace-stepper-markers">
+                                            <span className={`trace-milestone-tag ${currentOrder >= 1 ? 'active' : ''}`}>1. Vùng trồng</span>
+                                            <span className={`trace-milestone-tag ${currentOrder >= 2 ? 'active' : ''}`}>2. Thu hoạch</span>
+                                            <span className={`trace-milestone-tag ${currentOrder >= 4 ? 'active' : ''}`}>3. Sơ chế</span>
+                                            <span className={`trace-milestone-tag ${currentOrder >= 6 ? 'active' : ''}`}>4. VietGAP</span>
+                                            <span className={`trace-milestone-tag ${currentOrder >= 7 ? 'active' : ''}`}>5. Đóng gói</span>
+                                            <span className={`trace-milestone-tag ${currentOrder >= 8 ? 'active' : ''}`}>6. Vận chuyển</span>
+                                            <span className={`trace-milestone-tag ${currentOrder >= 9 ? 'active' : ''}`}>7. Lên kệ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* MOBILE TAB BAR NAVIGATION */}
-                        <div className="trace-mobile-tabs">
-                            <button
-                                onClick={() => setActiveTab('journey')}
-                                className={`trace-mobile-tab-btn ${activeTab === 'journey' ? 'active' : ''}`}
-                            >
-                                <Activity className="w-4 h-4" />
-                                <span>Hành Trình</span>
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('blockchain')}
-                                className={`trace-mobile-tab-btn ${activeTab === 'blockchain' ? 'active' : ''}`}
-                            >
-                                <Database className="w-4 h-4" />
-                                <span>Xác Thực</span>
-                            </button>
-                        </div>
+                        {/* 2. MAIN DETAILS 2-COLUMN GRID (Desktop 2 cols, Mobile responsive) */}
+                        <div className="trace-details-grid">
 
-                        {/* CONTENT GRID SPLIT */}
-                        <div className="trace-content-grid">
+                            {/* ─── CỘT 1: HÀNH TRÌNH CHUỖI CUNG ỨNG (5 CHẶNG) ─── */}
+                            <div className="trace-column-journey">
+                                <div className="trace-card-section">
+                                    <div className="trace-section-header">
+                                        <div className="trace-section-title-wrap">
+                                            <Activity className="w-4 h-4 text-emerald-600" />
+                                            <h3 className="trace-section-title">Hành Trình Chuỗi Cung Ứng</h3>
+                                        </div>
+                                        <span className="trace-section-badge">5 Chặng Khép Kín</span>
+                                    </div>
 
-                            {/* TAB 1: SUPPLY CHAIN TIMELINE (HÀNH TRÌNH) */}
-                            <div className={`trace-timeline-col ${activeTab === 'journey' ? 'show-mobile' : 'hide-mobile'}`}>
-                                <div className="trace-timeline-card-wrapper">
-                                    <h3 className="trace-section-title">
-                                        <Activity className="w-5 h-5 text-emerald-600" />
-                                        HÀNH TRÌNH CHUỖI CUNG ỨNG
-                                    </h3>
+                                    <div className="trace-timeline-flow">
 
-                                    <div className="trace-timeline">
-                                        {/* 1. VÙNG TRỒNG */}
-                                        <TimelineStep
-                                            icon={null}
-                                            title="Vùng Trồng"
+                                        {/* CHẶNG 1: VÙNG TRỒNG & XUẤT XỨ */}
+                                        <TimelineNode
+                                            stepNumber={1}
+                                            title="Vùng Trồng & Xuất Xứ Nông Trại"
                                             status={getStepStatus(1, traceData.targetInfo.currentStage)}
+                                            icon={<Leaf className="w-4 h-4 text-emerald-600" />}
                                         >
                                             {traceData.farmArea ? (
-                                                <div className="trace-step-details">
-                                                    <p className="trace-step-main-title">{traceData.farmArea.name}</p>
-                                                    <div className="trace-grid-details">
-                                                        <div className="trace-detail-item">
-                                                            <span className="trace-detail-lbl">Mã vùng trồng:</span>
-                                                            <span className="trace-detail-val">{traceData.farmArea.plantingCode || 'N/A'}</span>
+                                                <div className="trace-node-content">
+                                                    <div className="trace-node-headline">
+                                                        <h4 className="font-bold text-slate-900 text-sm">{traceData.farmArea.name}</h4>
+                                                        <span className="text-xs text-slate-500">{traceData.farmArea.province}</span>
+                                                    </div>
+
+                                                    <div className="trace-node-props-grid">
+                                                        <div className="trace-prop-box">
+                                                            <span className="trace-prop-label">Mã số vùng trồng (PUC):</span>
+                                                            <span className="trace-prop-value font-mono">{traceData.farmArea.plantingCode || 'PUC-VN-2026'}</span>
                                                         </div>
-                                                        <div className="trace-detail-item">
-                                                            <span className="trace-detail-lbl">GPS:</span>
-                                                            <span className="trace-detail-val text-blue-600 font-semibold">{traceData.farmArea.gps}</span>
-                                                        </div>
-                                                        <div className="trace-detail-item">
-                                                            <span className="trace-detail-lbl">Địa phương:</span>
-                                                            <span className="trace-detail-val">{traceData.farmArea.province}</span>
+                                                        <div className="trace-prop-box">
+                                                            <span className="trace-prop-label">Tọa độ định vị GPS:</span>
+                                                            <span className="trace-prop-value text-blue-600 font-mono flex items-center gap-1">
+                                                                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                                                                <span className="truncate">{traceData.farmArea.gps || '10.2536° N, 105.9722° E'}</span>
+                                                            </span>
                                                         </div>
                                                         {traceData.parentBatch?.plantingDate && (
-                                                            <div className="trace-detail-item">
-                                                                <span className="trace-detail-lbl">Ngày canh tác:</span>
-                                                                <span className="trace-detail-val">{new Date(traceData.parentBatch.plantingDate).toLocaleDateString('vi-VN')}</span>
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Thời điểm xuống giống:</span>
+                                                                <span className="trace-prop-value">
+                                                                    {new Date(traceData.parentBatch.plantingDate).toLocaleDateString('vi-VN')}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {traceData.parentBatch?.batchCode && (
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Mã lô gốc:</span>
+                                                                <span className="trace-prop-value font-mono font-bold text-slate-700 truncate">{traceData.parentBatch.batchCode}</span>
                                                             </div>
                                                         )}
                                                     </div>
-                                                </div>
-                                            ) : <p className="trace-step-empty">Chưa có dữ liệu vùng trồng.</p>}
-                                        </TimelineStep>
 
-                                        {/* 2. NHẬT KÝ CANH TÁC */}
-                                        <TimelineStep
-                                            icon={null}
-                                            title="Nhật Ký Canh Tác"
-                                            status={getStepStatus(1, traceData.targetInfo.currentStage)}
+                                                    {traceData.farmArea.gps && (
+                                                        <a
+                                                            href={`https://www.google.com/maps?q=${encodeURIComponent(traceData.farmArea.gps)}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="trace-map-link-btn"
+                                                        >
+                                                            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                                                            <span>Xem vị trí vườn trên Google Maps</span>
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <p className="trace-empty-text">Dữ liệu vùng trồng đang được đồng bộ.</p>
+                                            )}
+                                        </TimelineNode>
+
+                                        {/* CHẶNG 2: NHẬT KÝ CANH TÁC & CHĂM SÓC */}
+                                        <TimelineNode
+                                            stepNumber={2}
+                                            title={`Nhật Ký Canh Tác (${traceData.cultivationLogs.length} hoạt động)`}
+                                            status={getStepStatus(2, traceData.targetInfo.currentStage)}
+                                            icon={<Layers className="w-4 h-4 text-emerald-600" />}
                                         >
                                             {traceData.cultivationLogs.length > 0 ? (
-                                                <div className="trace-step-details">
-                                                    <div className="trace-logs-container">
-                                                        {(showAllLogs ? traceData.cultivationLogs : traceData.cultivationLogs.slice(0, 3)).map((log, i) => (
-                                                            <div key={i} className="trace-log-item-card">
-                                                                <div className="trace-log-item-header">
-                                                                    <span className="trace-log-item-activity">{log.activity}</span>
-                                                                    <span className="trace-log-item-date">{new Date(log.date).toLocaleDateString('vi-VN')}</span>
+                                                <div className="trace-node-content">
+                                                    <div className="trace-logs-list">
+                                                        {(showAllLogs ? traceData.cultivationLogs : traceData.cultivationLogs.slice(0, 3)).map((log, idx) => (
+                                                            <div key={idx} className="trace-log-item">
+                                                                <div className="trace-log-top">
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <span className="trace-log-activity-badge">{log.activity}</span>
+                                                                        <span className="trace-log-date">
+                                                                            <Calendar className="w-3 h-3 text-slate-400" />
+                                                                            {new Date(log.date).toLocaleDateString('vi-VN')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="trace-log-worker">
+                                                                        <User className="w-3 h-3 text-slate-400" />
+                                                                        <span>{log.worker}</span>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="trace-log-item-footer">
-                                                                    <User className="w-3.5 h-3.5 text-slate-400" />
-                                                                    <span>Nhân công: <strong>{log.worker}</strong></span>
-                                                                </div>
+
                                                                 {log.images && log.images.length > 0 && (
-                                                                    <div className="trace-log-images-grid mt-2.5 flex flex-wrap gap-2">
+                                                                    <div className="trace-log-gallery">
                                                                         {log.images.map((imgUrl, imgIdx) => {
                                                                             const resolvedUrl = resolveIpfsUrl(imgUrl);
                                                                             return (
-                                                                                <a
+                                                                                <div
                                                                                     key={imgIdx}
-                                                                                    href={resolvedUrl}
-                                                                                    target="_blank"
-                                                                                    rel="noreferrer"
-                                                                                    className="trace-log-image-link block overflow-hidden rounded-lg border border-slate-200 hover:border-emerald-500 transition-all"
-                                                                                    style={{ width: '80px', height: '80px' }}
+                                                                                    className="trace-log-thumb-wrap"
+                                                                                    onClick={() => setPreviewImage(resolvedUrl)}
+                                                                                    title="Click để phóng to ảnh"
                                                                                 >
                                                                                     <img
                                                                                         src={resolvedUrl}
-                                                                                        alt={`Ảnh nhật ký ${imgIdx + 1}`}
-                                                                                        className="w-full h-full object-cover"
+                                                                                        alt={`Hoạt động ${imgIdx + 1}`}
+                                                                                        className="trace-log-thumb-img"
                                                                                     />
-                                                                                </a>
+                                                                                    <div className="trace-thumb-overlay">
+                                                                                        <Maximize2 className="w-3.5 h-3.5 text-white" />
+                                                                                    </div>
+                                                                                </div>
                                                                             );
                                                                         })}
                                                                     </div>
@@ -444,202 +709,311 @@ export const TraceabilityPage: React.FC = () => {
                                                             </div>
                                                         ))}
                                                     </div>
+
                                                     {traceData.cultivationLogs.length > 3 && (
-                                                        <button onClick={() => setShowAllLogs(!showAllLogs)} className="trace-toggle-logs-btn">
-                                                            <span>{showAllLogs ? 'Thu gọn nhật ký' : `Xem thêm ${traceData.cultivationLogs.length - 3} nhật ký hoạt động`}</span>
-                                                            {showAllLogs ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                        <button
+                                                            onClick={() => setShowAllLogs(!showAllLogs)}
+                                                            className="trace-expand-logs-btn"
+                                                        >
+                                                            {showAllLogs ? (
+                                                                <>
+                                                                    <span>Thu gọn nhật ký</span>
+                                                                    <ChevronUp className="w-4 h-4" />
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <span>Xem thêm {traceData.cultivationLogs.length - 3} nhật ký canh tác</span>
+                                                                    <ChevronDown className="w-4 h-4" />
+                                                                </>
+                                                            )}
                                                         </button>
                                                     )}
                                                 </div>
-                                            ) : <p className="trace-step-empty">Chưa có nhật ký hoạt động nào được ghi nhận.</p>}
-                                        </TimelineStep>
+                                            ) : (
+                                                <p className="trace-empty-text">Chưa ghi nhận nhật ký canh tác phát sinh.</p>
+                                            )}
+                                        </TimelineNode>
 
-                                        {/* 3. THU HOẠCH */}
-                                        <TimelineStep
-                                            icon={null}
-                                            title="Thu Hoạch"
-                                            status={getStepStatus(2, traceData.targetInfo.currentStage)}
+                                        {/* CHẶNG 3: THU HOẠCH & ẢNH CHỤP THỰC TẾ LÚC THU HOẠCH */}
+                                        <TimelineNode
+                                            stepNumber={3}
+                                            title="Thu Hoạch & Phân Tuyển Nông Sản"
+                                            status={getStepStatus(3, traceData.targetInfo.currentStage)}
+                                            icon={<Scissors className="w-4 h-4 text-emerald-600" />}
                                         >
                                             {traceData.harvest ? (
-                                                <div className="trace-step-details">
-                                                    <div className="trace-grid-details">
-                                                        <div className="trace-detail-item">
-                                                            <span className="trace-detail-lbl">Ngày thu hoạch:</span>
-                                                            <span className="trace-detail-val font-semibold">{new Date(traceData.harvest.harvestDate).toLocaleDateString('vi-VN')}</span>
+                                                <div className="trace-node-content space-y-3">
+                                                    <div className="trace-node-props-grid">
+                                                        <div className="trace-prop-box">
+                                                            <span className="trace-prop-label">Ngày thu hoạch:</span>
+                                                            <span className="trace-prop-value font-bold text-slate-800">
+                                                                {new Date(traceData.harvest.harvestDate).toLocaleDateString('vi-VN')}
+                                                            </span>
                                                         </div>
-                                                        <div className="trace-detail-item">
-                                                            <span className="trace-detail-lbl">Tổng sản lượng:</span>
-                                                            <span className="trace-detail-val font-bold text-emerald-600">{traceData.harvest.quantity} {traceData.harvest.unit}</span>
+                                                        <div className="trace-prop-box">
+                                                            <span className="trace-prop-label">Sản lượng thu hoạch:</span>
+                                                            <span className="trace-prop-value font-extrabold text-emerald-600">
+                                                                {traceData.harvest.quantity.toLocaleString('vi-VN')} {traceData.harvest.unit}
+                                                            </span>
                                                         </div>
-                                                        <div className="trace-detail-item text-full-width">
-                                                            <span className="trace-detail-lbl">Đại diện thu hoạch:</span>
-                                                            <span className="trace-detail-val">{traceData.harvest.representativeWorker}</span>
+                                                        <div className="trace-prop-box col-span-full">
+                                                            <span className="trace-prop-label">Đại diện phụ trách thu hoạch:</span>
+                                                            <span className="trace-prop-value font-semibold flex items-center gap-1.5">
+                                                                <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                                                <span className="truncate">{traceData.harvest.representativeWorker || 'Nông dân đại diện HTX'}</span>
+                                                            </span>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ) : <p className="trace-step-empty">Sản phẩm chưa được tiến hành thu hoạch.</p>}
-                                        </TimelineStep>
 
-                                        {/* 4. KIỂM ĐỊNH & ĐÓNG GÓI */}
-                                        <TimelineStep
-                                            icon={null}
-                                            title="Kiểm Định & Đóng Gói"
-                                            status={getNode4Status()}
+                                                    {/* Ảnh thực tế lúc thu hoạch */}
+                                                    {harvestOnlyPhotos.length > 0 ? (
+                                                        <div className="trace-harvest-photos-section">
+                                                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2">
+                                                                <Camera className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                                                <span>Ảnh thực tế khi thu hoạch tại vườn ({harvestOnlyPhotos.length} ảnh):</span>
+                                                            </div>
+                                                            <div className="trace-harvest-photos-grid">
+                                                                {harvestOnlyPhotos.map((photo, pIdx) => (
+                                                                    <div
+                                                                        key={pIdx}
+                                                                        className="trace-harvest-photo-card"
+                                                                        onClick={() => setPreviewImage(photo.url)}
+                                                                        title="Nhấp để phóng to ảnh thu hoạch"
+                                                                    >
+                                                                        <img src={photo.url} alt={`Ảnh thu hoạch ${pIdx + 1}`} className="trace-harvest-photo-img" />
+                                                                        <div className="trace-harvest-photo-meta">
+                                                                            <span className="trace-harvest-photo-worker">{photo.worker}</span>
+                                                                            <span className="trace-harvest-photo-date">{new Date(photo.logDate).toLocaleDateString('vi-VN')}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="trace-harvest-no-photos">
+                                                            <ImageIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                                                            <span className="text-xs text-slate-500 leading-relaxed">Đợt thu hoạch đã được nông dân đại diện ký số và chứng thực trên Smart Contract.</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <p className="trace-empty-text">Lô nông sản đang trong giai đoạn canh tác, chưa thu hoạch.</p>
+                                            )}
+                                        </TimelineNode>
+
+                                        {/* CHẶNG 4: SƠ CHẾ, KIỂM ĐỊNH VIETGAP & ĐÓNG GÓI */}
+                                        <TimelineNode
+                                            stepNumber={4}
+                                            title="Sơ Chế, Kiểm Định VietGAP & Đóng Gói"
+                                            status={getStepStatus(4, traceData.targetInfo.currentStage)}
+                                            icon={<ShieldCheck className="w-4 h-4 text-emerald-600" />}
                                         >
-                                            <div className="space-y-4">
+                                            <div className="trace-node-content space-y-3">
                                                 {/* Sơ chế */}
                                                 {traceData.processing && (
-                                                    <div className="trace-sub-step-box border-b border-slate-100 pb-3">
-                                                        <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">1. Tiếp nhận & Sơ chế:</h5>
-                                                        <div className="trace-grid-details">
-                                                            <div className="trace-detail-item">
-                                                                <span className="trace-detail-lbl">Loại sơ chế:</span>
-                                                                <span className="trace-detail-val">{traceData.processing.processType}</span>
+                                                    <div className="trace-sub-step-card">
+                                                        <span className="trace-sub-step-tag">1. Sơ Chế & Phân Loại</span>
+                                                        <div className="trace-node-props-grid mt-2">
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Phương pháp:</span>
+                                                                <span className="trace-prop-value">{traceData.processing.processType}</span>
                                                             </div>
-                                                            <div className="trace-detail-item">
-                                                                <span className="trace-detail-lbl">Ngày thực hiện:</span>
-                                                                <span className="trace-detail-val">{new Date(traceData.processing.startDate).toLocaleDateString('vi-VN')}</span>
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Ngày thực hiện:</span>
+                                                                <span className="trace-prop-value">{new Date(traceData.processing.startDate).toLocaleDateString('vi-VN')}</span>
                                                             </div>
-                                                            <div className="trace-detail-item text-full-width">
-                                                                <span className="trace-detail-lbl">Mô tả công việc:</span>
-                                                                <span className="trace-detail-val">{traceData.processing.description}</span>
-                                                            </div>
+                                                            {traceData.processing.description && (
+                                                                <div className="trace-prop-box col-span-full">
+                                                                    <span className="trace-prop-label">Quy trình chi tiết:</span>
+                                                                    <span className="trace-prop-value text-slate-600">{traceData.processing.description}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                {/* Kiểm định */}
+                                                {/* Kiểm định VietGAP */}
                                                 {traceData.inspection ? (
-                                                    <div className="trace-sub-step-box border-b border-slate-100 pb-3">
-                                                        <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">2. Kiểm định chất lượng VietGAP:</h5>
-                                                        <div className="trace-grid-details">
-                                                            <div className="trace-detail-item">
-                                                                <span className="trace-detail-lbl">Mã số:</span>
-                                                                <span className="trace-detail-val font-mono">{traceData.inspection.documentNumber}</span>
+                                                    <div className="trace-sub-step-card cert-highlight">
+                                                        <div className="flex items-center justify-between flex-wrap gap-1">
+                                                            <span className="trace-sub-step-tag green">2. Kiểm Định VietGAP</span>
+                                                            <span className="trace-status-chip passed">ĐẠT CHUẨN AN TOÀN</span>
+                                                        </div>
+                                                        <div className="trace-node-props-grid mt-2">
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Số giấy chứng nhận:</span>
+                                                                <span className="trace-prop-value font-mono font-bold text-slate-900">{traceData.inspection.documentNumber}</span>
                                                             </div>
-                                                            <div className="trace-detail-item">
-                                                                <span className="trace-detail-lbl">Kết quả:</span>
-                                                                <span className="trace-result-pill passed">
-                                                                    ĐẠT CHUẨN AN TOÀN
-                                                                </span>
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Đơn vị kiểm nghiệm:</span>
+                                                                <span className="trace-prop-value">{traceData.inspection.unit || 'Trung tâm Giám định Chất lượng'}</span>
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => setShowVietGapModal(true)} className="trace-cert-detail-btn w-full justify-center mt-2">
-                                                            <Award className="w-4 h-4" />
+                                                        <button
+                                                            onClick={() => setShowVietGapModal(true)}
+                                                            className="trace-cert-view-btn mt-2.5"
+                                                        >
+                                                            <Award className="w-4 h-4 text-emerald-600 shrink-0" />
                                                             <span>Xem chi tiết Giấy Chứng Nhận VietGAP</span>
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <div className="trace-sub-step-box border-b border-slate-100 pb-3">
-                                                        <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">2. Kiểm định chất lượng:</h5>
-                                                        <p className="trace-step-empty">Chưa hoàn tất kiểm định chất lượng VietGAP.</p>
+                                                    <div className="trace-sub-step-card">
+                                                        <span className="trace-sub-step-tag">2. Kiểm Định Chất Lượng</span>
+                                                        <p className="trace-empty-text mt-1">Đang chờ hoàn tất hồ sơ kiểm định VietGAP.</p>
                                                     </div>
                                                 )}
 
                                                 {/* Đóng gói */}
                                                 {traceData.packaging ? (
-                                                    <div className="trace-sub-step-box">
-                                                        <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">3. Đóng gói thương phẩm:</h5>
-                                                        <div className="trace-grid-details">
-                                                            <div className="trace-detail-item">
-                                                                <span className="trace-detail-lbl">Quy cách:</span>
-                                                                <span className="trace-detail-val">{traceData.packaging.specification}</span>
+                                                    <div className="trace-sub-step-card">
+                                                        <span className="trace-sub-step-tag">3. Đóng Gói Thương Phẩm</span>
+                                                        <div className="trace-node-props-grid mt-2">
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Quy cách đóng gói:</span>
+                                                                <span className="trace-prop-value font-semibold">{traceData.packaging.specification}</span>
                                                             </div>
-                                                            <div className="trace-detail-item">
-                                                                <span className="trace-detail-lbl">Ngày đóng gói:</span>
-                                                                <span className="trace-detail-val">{new Date(traceData.packaging.packDate).toLocaleDateString('vi-VN')}</span>
+                                                            <div className="trace-prop-box">
+                                                                <span className="trace-prop-label">Ngày đóng gói:</span>
+                                                                <span className="trace-prop-value">{new Date(traceData.packaging.packDate).toLocaleDateString('vi-VN')}</span>
                                                             </div>
-                                                            <div className="trace-detail-item text-full-width">
-                                                                <span className="trace-detail-lbl">Tiêu chuẩn:</span>
-                                                                <span className="trace-detail-val font-bold">{traceData.packaging.standard || 'VietGAP'}</span>
+                                                            <div className="trace-prop-box col-span-full">
+                                                                <span className="trace-prop-label">Tiêu chuẩn xuất xưởng:</span>
+                                                                <span className="trace-prop-value font-bold text-emerald-700">{traceData.packaging.standard || 'TCVN / VietGAP'}</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="trace-sub-step-box">
-                                                        <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">3. Đóng gói:</h5>
-                                                        <p className="trace-step-empty">Chưa tiến hành đóng gói thương phẩm.</p>
+                                                    <div className="trace-sub-step-card">
+                                                        <span className="trace-sub-step-tag">3. Đóng Gói</span>
+                                                        <p className="trace-empty-text mt-1">Sản phẩm chưa đóng gói thành phẩm lẻ.</p>
                                                     </div>
                                                 )}
                                             </div>
-                                        </TimelineStep>
+                                        </TimelineNode>
 
-                                        {/* 5. VẬN CHUYỂN */}
-                                        <TimelineStep
-                                            icon={null}
-                                            title="Vận Chuyển"
-                                            status={getNode5Status()}
+                                        {/* CHẶNG 5: VẬN CHUYỂN & PHÂN PHỐI SIÊU THỊ */}
+                                        <TimelineNode
+                                            stepNumber={5}
+                                            title="Vận Chuyển & Phân Phối Siêu Thị"
+                                            status={getStepStatus(6, traceData.targetInfo.currentStage)}
+                                            icon={<Truck className="w-4 h-4 text-emerald-600" />}
                                             isLast={true}
                                         >
                                             {traceData.shipment ? (
-                                                <div className="trace-step-details space-y-4">
-                                                    <div className="trace-grid-details">
-                                                        <div className="trace-detail-item">
-                                                            <span className="trace-detail-lbl">Hãng vận chuyển:</span>
-                                                            <span className="trace-detail-val font-bold">{traceData.shipment.carrier}</span>
+                                                <div className="trace-node-content space-y-3">
+                                                    <div className="trace-node-props-grid">
+                                                        <div className="trace-prop-box">
+                                                            <span className="trace-prop-label">Đơn vị vận chuyển:</span>
+                                                            <span className="trace-prop-value font-bold">{traceData.shipment.carrier}</span>
                                                         </div>
-                                                        <div className="trace-detail-item">
-                                                            <span className="trace-detail-lbl">Mã vận đơn:</span>
-                                                            <span className="trace-detail-val font-mono">{traceData.shipment.shippingCode}</span>
+                                                        <div className="trace-prop-box">
+                                                            <span className="trace-prop-label">Mã vận đơn:</span>
+                                                            <span className="trace-prop-value font-mono font-bold text-slate-800">{traceData.shipment.shippingCode}</span>
                                                         </div>
-                                                        <div className="trace-detail-item text-full-width">
-                                                            <span className="trace-detail-lbl">Lộ trình cung ứng:</span>
-                                                            <div className="trace-route-display">
-                                                                <span className="trace-route-node">{traceData.shipment.pickupLocation}</span>
-                                                                <span className="trace-route-arrow">➔</span>
-                                                                <span className="trace-route-node font-bold text-emerald-700">{traceData.shipment.destination}</span>
+                                                    </div>
+
+                                                    {/* Route Diagram */}
+                                                    <div className="trace-route-card">
+                                                        <div className="trace-route-point">
+                                                            <span className="trace-route-dot origin" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <span className="trace-route-sub">Điểm lấy hàng</span>
+                                                                <strong className="trace-route-name truncate">{traceData.shipment.pickupLocation || 'Kho HTX Nông Nghiệp'}</strong>
+                                                            </div>
+                                                        </div>
+                                                        <div className="trace-route-arrow-box">
+                                                            <ArrowRight className="w-4 h-4 text-emerald-600" />
+                                                        </div>
+                                                        <div className="trace-route-point">
+                                                            <span className="trace-route-dot destination" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <span className="trace-route-sub">Điểm đến</span>
+                                                                <strong className="trace-route-name truncate">{traceData.shipment.destination || 'Trung tâm Phân phối'}</strong>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Bán lẻ */}
-                                                    <div className="border-t border-slate-100 pt-3">
-                                                        <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">Điểm bán lẻ & lên kệ:</h5>
-                                                        <div className="trace-grid-details">
-                                                            <div className="trace-detail-item text-full-width">
-                                                                <span className="trace-detail-lbl">Nhà bán lẻ:</span>
-                                                                <span className="trace-detail-val font-bold text-slate-800">{traceData.shipment.retailerName}</span>
-                                                            </div>
-                                                            {traceData.shipment.readyForSaleDate && (
-                                                                <div className="trace-detail-item">
-                                                                    <span className="trace-detail-lbl">Sẵn sàng lên kệ:</span>
-                                                                    <span className="trace-detail-val font-extrabold text-emerald-600">{new Date(traceData.shipment.readyForSaleDate).toLocaleString('vi-VN')}</span>
-                                                                </div>
-                                                            )}
+                                                    {/* Retailer Info */}
+                                                    <div className="trace-retailer-badge-box">
+                                                        <div className="flex items-center gap-2">
+                                                            <Store className="w-4 h-4 text-emerald-600 shrink-0" />
+                                                            <span className="text-xs text-slate-500">Đại lý / Siêu thị tiếp nhận:</span>
                                                         </div>
+                                                        <h5 className="font-extrabold text-slate-900 text-sm mt-1">{traceData.shipment.retailerName}</h5>
+                                                        {traceData.shipment.readyForSaleDate && (
+                                                            <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold mt-1">
+                                                                <Clock className="w-3.5 h-3.5 shrink-0" />
+                                                                <span>Sẵn sàng lên kệ: {new Date(traceData.shipment.readyForSaleDate).toLocaleString('vi-VN')}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ) : <p className="trace-step-empty">Sản phẩm chưa được bàn giao vận chuyển.</p>}
-                                        </TimelineStep>
+                                            ) : (
+                                                <p className="trace-empty-text">Sản phẩm đang lưu kho chuẩn bị điều phối vận chuyển.</p>
+                                            )}
+                                        </TimelineNode>
+
                                     </div>
                                 </div>
                             </div>
 
-                            {/* TAB 2: BLOCKCHAIN & PERSONNEL DETAILS (CHỨNG THỰC) */}
-                            <div className={`trace-hero-col ${activeTab === 'blockchain' ? 'show-mobile' : 'hide-mobile'}`}>
+                            {/* ─── CỘT 2: BẢO CHỨNG SMART CONTRACT & BLOCKCHAIN ─── */}
+                            <div className="trace-column-blockchain">
+                                
+                                {/* 1. Thẻ bảo chứng Smart Contract */}
+                                <div className="trace-crypto-badge-card">
+                                    <div className="trace-crypto-header">
+                                        <div className="trace-crypto-icon-box">
+                                            <Cpu className="w-5 h-5 text-emerald-400" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-white text-sm">Bảo Chứng Smart Contract</h4>
+                                            <span className="text-[11px] text-emerald-400 font-mono">FRUITCHAIN-CORE-V2</span>
+                                        </div>
+                                    </div>
 
-                                {/* PRODUCT HERO CARD (Hiển thị đầu tiên trên PC, ẩn trên Mobile) */}
-                                <div className="hide-mobile-only w-full mb-5">
-                                    {renderProductCard()}
+                                    <div className="trace-crypto-body">
+                                        <div className="trace-crypto-metric">
+                                            <span className="trace-crypto-label">Xác thực:</span>
+                                            <span className="trace-crypto-val-green">
+                                                <CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />
+                                                100% On-Chain Verified
+                                            </span>
+                                        </div>
+
+                                        <div className="trace-crypto-metric">
+                                            <span className="trace-crypto-label">Mạng phi tập trung:</span>
+                                            <span className="text-slate-300 font-mono text-xs">IPFS Protocol</span>
+                                        </div>
+
+                                        <div className="trace-crypto-metric">
+                                            <span className="trace-crypto-label">Tổng giao dịch:</span>
+                                            <span className="text-white font-bold font-mono text-xs">{traceData.blockchainHistory?.length || 0} Block Events</span>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* Personnel Card */}
+                                {/* 2. Nhân sự phụ trách */}
                                 {traceData.workers && traceData.workers.length > 0 && (
-                                    <div className="trace-info-card">
-                                        <h4 className="trace-info-card-title">
-                                            <Users className="w-4 h-4 text-emerald-600" />
-                                            Nhân Sự Sản Xuất Phụ Trách ({traceData.workers.length})
-                                        </h4>
-                                        <div className="trace-workers-list">
-                                            {traceData.workers.map((w, idx) => (
-                                                <div key={idx} className="trace-worker-item">
-                                                    <div className="trace-worker-avatar">
-                                                        <User className="w-3.5 h-3.5" />
+                                    <div className="trace-card-section">
+                                        <div className="trace-section-header">
+                                            <div className="trace-section-title-wrap">
+                                                <User className="w-4 h-4 text-emerald-600" />
+                                                <h4 className="trace-section-title text-sm">Nhân Sự Phụ Trách ({traceData.workers.length})</h4>
+                                            </div>
+                                        </div>
+
+                                        <div className="trace-workers-grid">
+                                            {traceData.workers.map((worker, idx) => (
+                                                <div key={idx} className="trace-worker-pill">
+                                                    <div className="trace-worker-avatar-box">
+                                                        <User className="w-3.5 h-3.5 text-emerald-600" />
                                                     </div>
-                                                    <div className="trace-worker-info">
-                                                        <span className="trace-worker-name">{w.fullName}</span>
-                                                        {w.isRepresentative && (
-                                                            <span className="trace-worker-badge">Người đại diện</span>
+                                                    <div className="trace-worker-details">
+                                                        <span className="font-bold text-slate-800 text-xs truncate">{worker.fullName}</span>
+                                                        {worker.isRepresentative && (
+                                                            <span className="trace-rep-badge shrink-0">Đại diện</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -648,55 +1022,42 @@ export const TraceabilityPage: React.FC = () => {
                                     </div>
                                 )}
 
-                                {/* Inspection Standard Card */}
-                                {traceData.inspection && (
-                                    <div className="trace-inspection-badge-card">
-                                        <div className="trace-inspection-badge-header">
-                                            <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                                            <span>TIÊU CHUẨN KIỂM ĐỊNH</span>
+                                {/* 3. Sổ cái giao dịch trực tiếp */}
+                                <div className="trace-card-section">
+                                    <div className="trace-section-header">
+                                        <div className="trace-section-title-wrap">
+                                            <Database className="w-4 h-4 text-emerald-600" />
+                                            <h4 className="trace-section-title text-sm">Sổ Cái Giao Dịch ({traceData.blockchainHistory?.length || 0})</h4>
                                         </div>
-                                        <div className="trace-inspection-badge-body">
-                                            <p className="trace-cert-name">{traceData.inspection.documentName}</p>
-                                            <p>Số: <strong>{traceData.inspection.documentNumber}</strong></p>
-                                            <p>Kết quả: <strong className="text-emerald-700 font-extrabold uppercase">{traceData.inspection.result}</strong></p>
-                                        </div>
-                                        {traceData.inspection.certificateFileUrl && (
-                                            <button onClick={() => setShowVietGapModal(true)} className="trace-cert-link border-0 w-full text-center" style={{ cursor: 'pointer' }}>
-                                                <span>Xem Giấy chứng nhận (VietGAP)</span>
-                                            </button>
-                                        )}
+                                        <span className="trace-section-badge green">Bất Biến</span>
                                     </div>
-                                )}
 
-                                {/* Blockchain History Card */}
-                                {traceData.blockchainHistory && traceData.blockchainHistory.length > 0 && (
-                                    <div className="trace-blockchain-card">
-                                        <h4 className="trace-blockchain-title">
-                                            <Database className="w-4 h-4 text-emerald-400 animate-pulse" />
-                                            Nhật ký Smart Contract ({traceData.blockchainHistory.length})
-                                        </h4>
-                                        <div className="trace-blockchain-list">
+                                    {traceData.blockchainHistory && traceData.blockchainHistory.length > 0 ? (
+                                        <div className="trace-tx-stream">
                                             {traceData.blockchainHistory.map((tx, idx) => (
-                                                <div key={idx} className="trace-blockchain-item">
-                                                    <div className="trace-blockchain-row">
-                                                        <span className="trace-blockchain-stage">{tx.stage}</span>
-                                                        <span className="trace-blockchain-status">
-                                                            <Check className="w-3 h-3 inline-block mr-0.5" />
+                                                <div key={idx} className="trace-tx-card">
+                                                    <div className="trace-tx-header-row">
+                                                        <span className="trace-tx-stage">{tx.stage}</span>
+                                                        <span className="trace-tx-status">
+                                                            <Check className="w-3 h-3 inline mr-0.5" />
                                                             {tx.status}
                                                         </span>
                                                     </div>
-                                                    <p className="trace-blockchain-fn">
-                                                        Hàm gọi: <span>{tx.functionName}()</span>
-                                                    </p>
 
-                                                    {/* Copy TxHash button */}
-                                                    <div className="trace-blockchain-tx-wrapper">
-                                                        <p className="trace-blockchain-tx" title={tx.txHash}>
-                                                            TxHash: <span className="trace-blockchain-hash">{formatHash(tx.txHash)}</span>
-                                                        </p>
+                                                    <div className="trace-tx-fn-call">
+                                                        <span>Hàm:</span>
+                                                        <strong>{tx.functionName}()</strong>
+                                                    </div>
+
+                                                    {/* TxHash with Copy */}
+                                                    <div className="trace-tx-hash-box">
+                                                        <span className="text-slate-400 font-mono text-[11px]">Tx:</span>
+                                                        <span className="trace-tx-hash-str font-mono truncate" title={tx.txHash}>
+                                                            {formatHash(tx.txHash)}
+                                                        </span>
                                                         <button
                                                             onClick={() => handleCopyTx(tx.txHash)}
-                                                            className="trace-copy-btn"
+                                                            className="trace-copy-tx-btn"
                                                             title="Sao chép TxHash"
                                                         >
                                                             {copiedTx === tx.txHash ? (
@@ -707,36 +1068,90 @@ export const TraceabilityPage: React.FC = () => {
                                                         </button>
                                                     </div>
 
-                                                    <p className="trace-blockchain-wallet" title={tx.actorWallet}>
-                                                        Ký bởi ví: <span>{formatHash(tx.actorWallet)}</span>
-                                                    </p>
-                                                    <div className="trace-blockchain-footer">
-                                                        <span className="trace-block-number">Block #{tx.blockNumber || 'N/A'}</span>
-                                                        <span className="trace-block-time">{new Date(tx.timestamp).toLocaleString('vi-VN')}</span>
+                                                    <div className="trace-tx-footer-row">
+                                                        <span className="trace-tx-block font-mono">Block #{tx.blockNumber || 'Auto'}</span>
+                                                        <span className="trace-tx-time">{new Date(tx.timestamp).toLocaleString('vi-VN')}</span>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <p className="trace-empty-text">Dữ liệu on-chain đang được ghi nhận vào khối.</p>
+                                    )}
+                                </div>
+
+                                {/* Thông báo an ninh */}
+                                <div className="trace-security-notice-card">
+                                    <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <p className="text-slate-600 text-xs leading-relaxed">
+                                        Mọi thông tin được xác thực bằng chữ ký số Smart Contract trên Blockchain. Không một bên nào có thể thay đổi dữ liệu đã ghi nhận.
+                                    </p>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+                )}
+
+                {/* ─────── EMPTY WELCOME STATE ─────── */}
+                {!loading && !traceData && !error && (
+                    <div className="trace-welcome-box">
+                        <div className="trace-welcome-icon-wrap">
+                            <QrCode className="w-12 h-12 text-emerald-600" />
+                        </div>
+                        <h2 className="trace-welcome-title">Chào Mừng Đến Với FruitChain</h2>
+                        <p className="trace-welcome-desc">
+                            Vui lòng nhập mã lô hàng (Ví dụ: <strong className="text-emerald-700">SUB-001</strong>), mã QR Code hoặc nhấn nút <strong>"Quét QR"</strong> để tra cứu nguồn gốc thực phẩm.
+                        </p>
+                        <div className="trace-welcome-features">
+                            <div className="trace-welcome-feat-item">
+                                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Kiểm định VietGAP tiêu chuẩn</span>
+                            </div>
+                            <div className="trace-welcome-feat-item">
+                                <Camera className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Ảnh thực tế khi thu hoạch</span>
+                            </div>
+                            <div className="trace-welcome-feat-item">
+                                <Cpu className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Bảo chứng Smart Contract</span>
                             </div>
                         </div>
                     </div>
-                ) : !loading && !error && (
-                    <div className="trace-empty-state">
-                        <QrCode className="w-16 h-16 text-slate-300" />
-                        <h2>Chào mừng đến với FruitChain</h2>
-                        <p>Vui lòng nhập mã lô hàng, mã lô con hoặc nhấn nút "Quét QR" bên trên để truy xuất toàn bộ thông tin nguồn gốc chất lượng sản phẩm.</p>
-                    </div>
                 )}
+
             </main>
 
-            {/* FLOATING ACTION SCAN QR BUTTON FOR MOBILE */}
-            <button onClick={() => setShowQrModal(true)} className="trace-floating-qr" title="Quét mã QR nhanh">
-                <QrCode className="w-6 h-6" />
+            {/* ─────── FLOATING QUICK SCAN QR BUTTON (Mobile) ─────── */}
+            <button
+                onClick={() => setShowQrModal(true)}
+                className="trace-fab-scan-btn"
+                title="Quét mã QR nhanh"
+            >
+                <QrCode className="w-6 h-6 text-white" />
             </button>
 
-            {/* ──── MODALS ──── */}
+            {/* ─────── IMAGE LIGHTBOX PREVIEW MODAL ─────── */}
+            {previewImage && (
+                <div className="trace-lightbox-backdrop" onClick={() => setPreviewImage(null)}>
+                    <div className="trace-lightbox-content" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            onClick={() => setPreviewImage(null)}
+                            className="trace-lightbox-close-btn"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <img
+                            src={previewImage}
+                            alt="Ảnh chi tiết sản phẩm"
+                            className="trace-lightbox-img"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* ─────── MODALS ─────── */}
             {traceData?.inspection && (
                 <VietGapModal
                     isOpen={showVietGapModal}
@@ -756,30 +1171,48 @@ export const TraceabilityPage: React.FC = () => {
     );
 };
 
-/* ─────── Timeline Step Sub-component ─────── */
-interface TimelineStepProps {
-    icon: React.ReactNode;
+/* ─────── Timeline Sub-Component ─────── */
+interface TimelineNodeProps {
+    stepNumber: number;
     title: string;
     status: 'completed' | 'active' | 'pending';
+    icon: React.ReactNode;
     isLast?: boolean;
     children: React.ReactNode;
 }
 
-const TimelineStep: React.FC<TimelineStepProps> = ({ icon, title, status, isLast = false, children }) => {
+const TimelineNode: React.FC<TimelineNodeProps> = ({
+    stepNumber,
+    title,
+    status,
+    icon,
+    isLast = false,
+    children
+}) => {
     return (
-        <div className={`trace-timeline-step ${status}`}>
-            {!isLast && <div className="trace-timeline-line" />}
-            <div className={`trace-timeline-dot ${status}`}>
-                {icon}
+        <div className={`trace-timeline-node ${status}`}>
+            {!isLast && <div className="trace-node-connector" />}
+            
+            <div className={`trace-node-badge ${status}`}>
+                {status === 'completed' ? (
+                    <Check className="w-4 h-4 text-white" />
+                ) : (
+                    <span>{stepNumber}</span>
+                )}
             </div>
-            <div className={`trace-timeline-content ${status}`}>
-                <div className="trace-timeline-header">
-                    <h4 className="trace-timeline-title">{title}</h4>
-                    {status === 'active' && <span className="trace-step-badge-indicator active">Đang thực hiện</span>}
-                    {status === 'completed' && <span className="trace-step-badge-indicator completed">Đã hoàn thành</span>}
-                    {status === 'pending' && <span className="trace-step-badge-indicator pending">Chưa thực hiện</span>}
+
+            <div className={`trace-node-card ${status}`}>
+                <div className="trace-node-header">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="trace-node-icon-box shrink-0">{icon}</span>
+                        <h4 className="trace-node-title truncate">{title}</h4>
+                    </div>
+                    {status === 'completed' && <span className="trace-node-tag completed shrink-0">Hoàn thành</span>}
+                    {status === 'active' && <span className="trace-node-tag active shrink-0">Đang thực hiện</span>}
+                    {status === 'pending' && <span className="trace-node-tag pending shrink-0">Chưa tới</span>}
                 </div>
-                <div className="trace-timeline-body">
+
+                <div className="trace-node-body">
                     {children}
                 </div>
             </div>
@@ -787,1107 +1220,2022 @@ const TimelineStep: React.FC<TimelineStepProps> = ({ icon, title, status, isLast
     );
 };
 
-/* ─────── Premium CSS Styling (Optimized for Mobile) ─────── */
-const tracePageStyles = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+/* ─────── MASTER MODERN CSS STYLING (PC PRESERVED + MOBILE RESPONSIVE) ─────── */
+const traceModernStyles = `
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
 :root {
-    --primary: #10b981;
-    --primary-dark: #047857;
-    --primary-light: #ecfdf5;
-    --accent: #3b82f6;
-    --bg-page: #f8fafc;
-    --bg-card: #ffffff;
-    --text-main: #1e293b;
-    --text-muted: #64748b;
-    --border: #e2e8f0;
+    --fc-primary: #059669;
+    --fc-primary-hover: #047857;
+    --fc-primary-light: #ecfdf5;
+    --fc-emerald-500: #10b981;
+    --fc-amber: #f59e0b;
+    --fc-slate-900: #0f172a;
+    --fc-slate-800: #1e293b;
+    --fc-slate-700: #334155;
+    --fc-slate-600: #475569;
+    --fc-slate-500: #64748b;
+    --fc-slate-200: #e2e8f0;
+    --fc-slate-100: #f1f5f9;
+    --fc-slate-50: #f8fafc;
     
-    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 10px 20px -5px rgba(16, 185, 129, 0.04), 0 8px 16px -6px rgba(16, 185, 129, 0.04);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --fc-radius-sm: 10px;
+    --fc-radius-md: 14px;
+    --fc-radius-lg: 20px;
+    --fc-radius-xl: 26px;
+    
+    --fc-shadow-card: 0 6px 20px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
-.trace-page {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+.trace-app-root {
     min-height: 100vh;
-    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
-    color: var(--text-main);
+    background: #f8fafc;
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.06) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.04) 0px, transparent 50%);
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--fc-slate-800);
+    padding-bottom: 90px;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
     width: 100%;
 }
 
-/* ===== Header ===== */
-.trace-header {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+/* ─────── TOP NAVBAR ─────── */
+.trace-navbar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid rgba(226, 232, 240, 0.8);
     position: sticky;
     top: 0;
-    z-index: 50;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+    z-index: 40;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
 }
 
-.trace-header-inner {
+.trace-nav-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 12px 16px;
+    padding: 12px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
 }
 
-.trace-logo-group {
+.trace-brand-link {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    text-decoration: none;
 }
 
-.trace-logo-img {
-    width: 34px;
-    height: 34px;
+.trace-brand-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.trace-brand-img {
+    width: 24px;
+    height: 24px;
     object-fit: contain;
 }
 
-.trace-logo-text {
-    font-size: 20px;
+.trace-brand-text-wrap {
+    display: flex;
+    flex-direction: column;
+}
+
+.trace-brand-title {
+    font-size: 18px;
     font-weight: 900;
     letter-spacing: -0.5px;
+    line-height: 1.1;
 }
 
-.trace-logo-fruit { color: #059669; }
-.trace-logo-chain { color: #f59e0b; }
+.trace-brand-green { color: var(--fc-primary); }
+.trace-brand-gold { color: var(--fc-amber); }
 
-.trace-page-title {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--text-main);
+.trace-brand-sub {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--fc-slate-500);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    text-align: center;
-    flex: 1;
-    display: none;
 }
 
-@media (min-width: 768px) {
-    .trace-page-title { display: block; }
-}
-
-.trace-verified-badge {
+.trace-nav-right {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: #047857;
-    color: #fff;
+}
+
+.trace-blockchain-badge-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0f172a;
+    color: #ffffff;
     padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 9px;
+    border-radius: 20px;
+    font-size: 11px;
     font-weight: 800;
-    line-height: 1.2;
-    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.15);
     white-space: nowrap;
 }
 
-@media (max-width: 480px) {
-    .trace-header-inner {
-        padding: 10px 12px;
-        gap: 6px;
-    }
-    .trace-logo-img {
-        width: 28px;
-        height: 28px;
-    }
-    .trace-logo-text {
-        font-size: 16px;
-    }
-    .trace-verified-badge {
-        padding: 4px 8px;
-        gap: 4px;
-    }
-    .trace-verified-badge-text span {
-        font-size: 7px;
-    }
-    .trace-verified-badge-text strong {
-        font-size: 8px;
-    }
+.trace-pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 8px #34d399;
+    animation: pulseGlow 1.8s infinite;
 }
 
-.trace-verified-badge-text {
+@keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+.trace-nav-action-btn {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--fc-slate-700);
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.trace-verified-badge-text span {
-    font-size: 8px;
-    font-weight: 500;
-    opacity: 0.9;
+.trace-nav-action-btn:hover {
+    background: #f8fafc;
+    border-color: var(--fc-slate-300);
 }
 
-.trace-verified-badge-text strong {
-    font-size: 10px;
-    font-weight: 900;
-}
-
-/* ===== Search Area ===== */
-.trace-main {
+/* ─────── BODY CONTAINER ─────── */
+.trace-body-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 16px 16px 100px;
-}
-
-.trace-search-bar {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    padding: 8px;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: var(--shadow-sm);
+    padding: 24px 20px 80px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
-    transition: all 0.3s ease;
-}
-
-.trace-search-bar:focus-within {
-    border-color: rgba(16, 185, 129, 0.4);
-}
-
-.trace-input-wrapper {
-    flex: 1;
-}
-
-.trace-search-input {
+    gap: 22px;
     width: 100%;
-    box-sizing: border-box;
-    padding: 12px 14px;
+}
+
+.trace-result-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    width: 100%;
+}
+
+/* ─────── HERO SEARCH CARD ─────── */
+.trace-search-hero-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: var(--fc-radius-xl);
+    padding: 32px 24px;
+    box-shadow: var(--fc-shadow-card);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+
+.trace-search-header-group {
+    max-width: 720px;
+    margin: 0 auto 20px;
+}
+
+.trace-tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ecfdf5;
+    color: var(--fc-primary);
+    border: 1px solid #a7f3d0;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+}
+
+.trace-main-heading {
+    font-size: 30px;
+    font-weight: 900;
+    color: var(--fc-slate-900);
+    margin: 0 0 8px;
+    letter-spacing: -0.5px;
+}
+
+.trace-sub-heading {
+    font-size: 13.5px;
+    color: var(--fc-slate-600);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Search bar */
+.trace-search-box-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
     background: #ffffff;
+    padding: 5px;
+    border-radius: 18px;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.trace-search-box-wrapper:focus-within {
+    border-color: var(--fc-emerald-500);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+}
+
+.trace-input-inner {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.trace-native-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fc-slate-900);
+    background: transparent;
+}
+
+.trace-native-input::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.trace-clear-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trace-search-buttons-group {
+    display: flex;
+    gap: 6px;
+}
+
+.trace-scan-qr-btn {
+    padding: 10px 16px;
+    background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--text-main);
-    outline: none;
+    color: var(--fc-slate-700);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
-.trace-actions-wrapper {
+.trace-scan-qr-btn:hover {
+    background: #f1f5f9;
+}
+
+.trace-submit-btn {
+    padding: 10px 22px;
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    border: none;
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.trace-submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+}
+
+.trace-inline-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Sample tags bar */
+.trace-sample-tags-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    font-size: 12px;
+}
+
+.trace-sample-title {
+    color: var(--fc-slate-500);
+    font-weight: 600;
+}
+
+.trace-sample-list {
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
+}
+
+.trace-sample-chip {
+    padding: 3px 10px;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--fc-slate-700);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trace-sample-chip:hover {
+    border-color: var(--fc-primary);
+    color: var(--fc-primary);
+    background: #ecfdf5;
+}
+
+/* ─────── PRODUCT MASTER HERO CARD ─────── */
+.trace-product-hero-container {
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    border-radius: var(--fc-radius-xl);
+    padding: 24px;
+    box-shadow: var(--fc-shadow-card);
     width: 100%;
 }
 
-@media (max-width: 360px) {
-    .trace-actions-wrapper {
-        flex-direction: column;
-        gap: 6px;
-    }
-    .trace-search-btn, .trace-qr-btn {
-        width: 100% !important;
-        flex: none !important;
-    }
+.trace-product-hero-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    align-items: flex-start;
+    gap: 24px;
+    width: 100%;
 }
 
-@media (min-width: 768px) {
-    .trace-search-bar {
-        flex-direction: row;
-        align-items: center;
-        padding: 10px;
-    }
-    .trace-actions-wrapper {
-        display: flex;
-        width: auto;
-    }
+.trace-product-media-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-.trace-qr-btn {
-    flex: 1;
-    padding: 10px 14px;
-    background: #1e293b;
-    color: #fff;
+.trace-product-image-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/3;
+    border-radius: var(--fc-radius-lg);
+    overflow: hidden;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.trace-product-main-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+}
+
+.trace-product-main-img:hover {
+    transform: scale(1.03);
+}
+
+.trace-image-glass-tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+}
+
+.trace-image-glass-tag.harvest-tag {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(180, 83, 9, 0.95));
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.trace-image-zoom-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(4px);
     border: none;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 12.5px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    color: var(--fc-slate-800);
     cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
 }
 
-.trace-search-btn {
-    flex: 1.5;
-    padding: 10px 16px;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #fff;
-    border: none;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 12.5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    cursor: pointer;
+.trace-image-zoom-btn:hover {
+    background: #ffffff;
+    transform: scale(1.1);
 }
 
-/* ===== Progress Bar ===== */
-.trace-progress-container {
-    margin-top: 14px;
+/* Thumbnails Strip */
+.trace-hero-thumb-strip {
     background: #f8fafc;
-    padding: 10px 12px;
-    border-radius: 12px;
     border: 1px solid #f1f5f9;
+    border-radius: var(--fc-radius-md);
+    padding: 10px;
 }
 
-.trace-progress-text {
+.trace-thumb-strip-lbl {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--fc-slate-600);
+}
+
+.trace-hero-thumbs-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.trace-hero-thumb-btn {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.trace-hero-thumb-btn.active {
+    border-color: var(--fc-primary);
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25);
+}
+
+.trace-thumb-harvest-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 3px;
+    padding: 1px;
+}
+
+.trace-photo-caption-card {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: var(--fc-radius-md);
+    padding: 8px 12px;
+}
+
+.trace-vietgap-seal-card {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #6ee7b7;
+    border-radius: var(--fc-radius-md);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s ease;
+}
+
+.trace-vietgap-seal-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+}
+
+.trace-seal-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.15);
+    flex-shrink: 0;
+}
+
+.trace-seal-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.trace-seal-lbl {
+    font-size: 10px;
+    font-weight: 700;
+    color: #065f46;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.trace-seal-val {
+    font-size: 13.5px;
+    font-weight: 900;
+    color: #047857;
+}
+
+/* Info Column */
+.trace-product-info-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.trace-product-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.trace-batch-badge {
+    padding: 4px 12px;
+    background: #f0fdf4;
+    color: var(--fc-primary);
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.trace-code-copy-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f8fafc;
+    border: 1px solid var(--fc-slate-200);
+    padding: 4px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trace-code-copy-pill:hover {
+    background: #f1f5f9;
+    border-color: var(--fc-slate-300);
+}
+
+.trace-product-title {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--fc-slate-900);
+    margin: 0;
+    letter-spacing: -0.5px;
+    line-height: 1.25;
+}
+
+/* Attributes grid */
+.trace-attributes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.trace-attr-item {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    padding: 10px 12px;
+    border-radius: var(--fc-radius-md);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.trace-attr-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.trace-attr-label {
+    display: block;
+    font-size: 10px;
+    color: var(--fc-slate-500);
+    font-weight: 600;
+}
+
+.trace-attr-val {
+    display: block;
+    font-size: 12.5px;
+    color: var(--fc-slate-900);
+    font-weight: 800;
+}
+
+/* Stepper progress */
+.trace-stepper-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--fc-radius-md);
+    padding: 14px;
+}
+
+.trace-stepper-header {
     display: flex;
     justify-content: space-between;
-    font-size: 12px;
-    margin-bottom: 6px;
+    align-items: center;
+    margin-bottom: 8px;
 }
 
-.trace-progress-text span {
-    color: var(--text-muted);
-}
-
-.trace-progress-bar-bg {
+.trace-stepper-track {
     width: 100%;
-    height: 6px;
+    height: 8px;
     background: #e2e8f0;
-    border-radius: 3px;
+    border-radius: 4px;
     overflow: hidden;
+    position: relative;
 }
 
-.trace-progress-bar-fill {
+.trace-stepper-fill {
     height: 100%;
-    background: linear-gradient(to right, #10b981, #3b82f6);
-    border-radius: 3px;
+    background: linear-gradient(90deg, #059669 0%, #10b981 50%, #3b82f6 100%);
+    border-radius: 4px;
     transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== Main Layout Container ===== */
-.trace-main-container {
+.trace-stepper-markers {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    gap: 4px;
+}
+
+.trace-milestone-tag {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 2px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.trace-milestone-tag.active {
+    color: var(--fc-primary);
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+    font-weight: 800;
+}
+
+/* ─────── DETAILS 2-COLUMN GRID ─────── */
+.trace-details-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 22px;
+    width: 100%;
+}
+
+.trace-column-journey,
+.trace-column-blockchain {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-/* ===== Product Card ===== */
-.trace-hero-card {
-    background: var(--bg-card);
-    border-radius: 24px;
-    border: 1px solid var(--border);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
+/* ─────── CARD SECTION ─────── */
+.trace-card-section {
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    border-radius: var(--fc-radius-xl);
+    padding: 20px;
+    box-shadow: var(--fc-shadow-card);
+    width: 100%;
+}
+
+.trace-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--fc-slate-100);
+}
+
+.trace-section-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trace-section-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--fc-slate-900);
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.trace-section-badge {
+    padding: 3px 8px;
+    background: #f1f5f9;
+    color: var(--fc-slate-600);
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.trace-section-badge.green {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+/* ─────── TIMELINE FLOW ─────── */
+.trace-timeline-flow {
+    position: relative;
+    padding-left: 4px;
+}
+
+.trace-timeline-node {
+    position: relative;
+    padding-left: 40px;
+    padding-bottom: 24px;
+}
+
+.trace-timeline-node:last-child {
+    padding-bottom: 0;
+}
+
+.trace-node-connector {
+    position: absolute;
+    left: 14px;
+    top: 32px;
+    bottom: -6px;
+    width: 2px;
+    background: #e2e8f0;
+    z-index: 1;
+}
+
+.trace-timeline-node.completed .trace-node-connector {
+    background: #10b981;
+}
+
+.trace-node-badge {
+    position: absolute;
+    left: 0px;
+    top: 2px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.trace-timeline-node.completed .trace-node-badge {
+    background: #059669;
+    border-color: #059669;
+    color: #ffffff;
+}
+
+.trace-timeline-node.active .trace-node-badge {
+    background: #ffffff;
+    border-color: #3b82f6;
+    color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.trace-node-card {
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    border-radius: var(--fc-radius-md);
+    padding: 14px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.trace-node-card.completed {
+    border-left: 4px solid var(--fc-emerald-500);
+}
+
+.trace-node-card.active {
+    border-left: 4px solid #3b82f6;
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+}
+
+.trace-node-card.pending {
+    opacity: 0.7;
+    background: #fafafa;
+}
+
+.trace-node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
+.trace-node-icon-box {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: #ecfdf5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trace-node-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--fc-slate-900);
+    margin: 0;
+}
+
+.trace-node-tag {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.trace-node-tag.completed {
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.trace-node-tag.active {
+    background: #eff6ff;
+    color: #1e40af;
+}
+
+.trace-node-tag.pending {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.trace-node-headline {
+    margin-bottom: 8px;
+}
+
+.trace-node-props-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.trace-prop-box {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+.trace-prop-label {
+    display: block;
+    font-size: 10px;
+    color: var(--fc-slate-500);
+    font-weight: 600;
+}
+
+.trace-prop-value {
+    display: block;
+    font-size: 12px;
+    color: var(--fc-slate-900);
+    font-weight: 700;
+    margin-top: 1px;
+}
+
+.trace-map-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 6px 12px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.trace-map-link-btn:hover {
+    background: #dbeafe;
+}
+
+/* Cultivation logs */
+.trace-logs-list {
     display: flex;
     flex-direction: column;
+    gap: 8px;
 }
 
-.trace-hero-img-wrap {
-    width: 100%;
-    aspect-ratio: 16/9;
+.trace-log-item {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: var(--fc-radius-sm);
+    padding: 8px 12px;
+}
+
+.trace-log-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.trace-log-activity-badge {
+    padding: 2px 8px;
+    background: #ecfdf5;
+    color: #065f46;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 800;
+}
+
+.trace-log-date, .trace-log-worker {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--fc-slate-500);
+    font-weight: 600;
+}
+
+.trace-log-gallery {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.trace-log-thumb-wrap {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
     overflow: hidden;
-    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
 }
 
-.trace-hero-img {
+.trace-log-thumb-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
 }
 
-.trace-hero-img-placeholder {
-    width: 100%;
-    aspect-ratio: 16/9;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+.trace-thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
 }
 
-.trace-hero-info {
-    padding: 16px;
+.trace-log-thumb-wrap:hover .trace-thumb-overlay {
+    opacity: 1;
 }
 
-.trace-hero-type-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    background: #ecfdf5;
-    color: #047857;
-    font-size: 9.5px;
-    font-weight: 800;
-    border-radius: 6px;
-    text-transform: uppercase;
-    margin-bottom: 6px;
+.trace-expand-logs-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fc-slate-700);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.trace-hero-name {
-    font-size: 18px;
-    font-weight: 900;
-    color: var(--text-main);
-    margin: 0 0 12px;
+.trace-expand-logs-btn:hover {
+    background: #e2e8f0;
 }
 
-.trace-hero-details {
+/* Harvest photos section in Step 3 */
+.trace-harvest-photos-section {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: var(--fc-radius-md);
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.trace-harvest-photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+}
+
+.trace-harvest-photo-card {
+    background: #ffffff;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease;
+}
+
+.trace-harvest-photo-card:hover {
+    transform: scale(1.04);
+}
+
+.trace-harvest-photo-img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    display: block;
+}
+
+.trace-harvest-photo-meta {
+    padding: 4px 6px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    background: #ffffff;
 }
 
-.trace-hero-detail-row {
+.trace-harvest-photo-worker {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--fc-slate-800);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.trace-harvest-photo-date {
+    font-size: 9px;
+    color: var(--fc-slate-500);
+}
+
+.trace-harvest-no-photos {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 8px;
+}
+
+/* Sub-steps in Step 4 */
+.trace-sub-step-card {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: var(--fc-radius-md);
+    padding: 12px;
+}
+
+.trace-sub-step-card.cert-highlight {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.trace-sub-step-tag {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--fc-slate-700);
+    text-transform: uppercase;
+}
+
+.trace-sub-step-tag.green {
+    color: #047857;
+}
+
+.trace-status-chip {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.trace-status-chip.passed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.trace-cert-view-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #6ee7b7;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #047857;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trace-cert-view-btn:hover {
+    background: #ecfdf5;
+}
+
+/* Logistics & route card */
+.trace-route-card {
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: var(--fc-radius-md);
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.trace-route-point {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.trace-route-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.trace-route-dot.origin { background: #3b82f6; }
+.trace-route-dot.destination { background: #10b981; }
+
+.trace-route-sub {
+    display: block;
+    font-size: 9.5px;
+    color: var(--fc-slate-500);
+    font-weight: 600;
+}
+
+.trace-route-name {
+    display: block;
+    font-size: 12px;
+    color: var(--fc-slate-900);
+}
+
+.trace-retailer-badge-box {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: var(--fc-radius-md);
+    padding: 10px 12px;
+}
+
+/* ─────── BLOCKCHAIN CRYPTO CARD ─────── */
+.trace-crypto-badge-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--fc-radius-xl);
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+    width: 100%;
+}
+
+.trace-crypto-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.trace-crypto-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.trace-crypto-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.trace-crypto-metric {
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 12px;
 }
 
-.trace-hero-label {
-    color: var(--text-muted);
+.trace-crypto-label {
+    color: #94a3b8;
 }
 
-.trace-hero-value {
-    color: var(--text-main);
-    font-weight: 700;
-}
-
-/* ===== Mobile Tabs ===== */
-.trace-mobile-tabs {
-    display: flex;
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(8px);
-    border-radius: 14px;
-    padding: 4px;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    gap: 4px;
-}
-
-.trace-mobile-tab-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px;
-    font-weight: 700;
-    font-size: 13px;
-    border-radius: 10px;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.trace-mobile-tab-btn.active {
-    background: #ffffff;
-    color: var(--primary-dark);
-    box-shadow: var(--shadow-sm);
-}
-
-/* ===== Responsive Grid logic ===== */
-.trace-content-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-}
-
-.show-mobile-only {
-    display: block !important;
-}
-.hide-mobile-only {
-    display: none !important;
-}
-
-@media (max-width: 1023px) {
-    .trace-timeline-col.hide-mobile,
-    .trace-hero-col.hide-mobile {
-        display: none !important;
-    }
-    .trace-timeline-col.show-mobile,
-    .trace-hero-col.show-mobile {
-        display: block !important;
-    }
-}
-
-@media (min-width: 1024px) {
-    .show-mobile-only {
-        display: none !important;
-    }
-    .hide-mobile-only {
-        display: block !important;
-    }
-    .trace-mobile-tabs {
-        display: none !important;
-    }
-    .trace-content-grid {
-        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-    }
-    .trace-timeline-col,
-    .trace-hero-col {
-        display: block !important;
-    }
-    .trace-main-container {
-        display: grid;
-        grid-template-columns: 1fr;
-    }
-    .trace-hero-card {
-        flex-direction: row;
-        align-items: stretch;
-    }
-    .trace-hero-img-wrap, 
-    .trace-hero-img-placeholder {
-        width: 35%;
-        aspect-ratio: auto;
-        min-height: 160px;
-    }
-    .trace-hero-info {
-        width: 65%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        padding: 20px;
-    }
-}
-
-/* ===== Timeline Styling ===== */
-.trace-timeline-card-wrapper {
-    background: var(--bg-card);
-    border-radius: 24px;
-    padding: 16px;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-}
-
-.trace-timeline {
-    position: relative;
-    padding-left: 4px;
-}
-
-.trace-timeline-step {
-    position: relative;
-    padding-left: 40px;
-    padding-bottom: 24px;
-}
-
-.trace-timeline-step:last-child {
-    padding-bottom: 0;
-}
-
-.trace-timeline-line {
-    position: absolute;
-    left: 12px;
-    top: 26px;
-    bottom: -10px;
-    width: 2px;
-    background: #e2e8f0;
-    z-index: 1;
-}
-
-.trace-timeline-step.completed .trace-timeline-line {
-    background: #10b981;
-}
-
-.trace-timeline-step.active .trace-timeline-line {
-    background: #cbd5e1;
-}
-
-.trace-timeline-dot {
-    position: absolute;
-    left: 2px;
-    top: 4px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #ffffff;
-    border: 3px solid #cbd5e1;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.trace-timeline-dot.completed {
-    border-color: #10b981;
-    background: #ffffff;
-}
-
-.trace-timeline-dot.active {
-    border-color: #059669;
-    background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
-}
-
-.trace-timeline-dot.active::after {
-    content: '';
-    display: block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #059669;
-}
-
-.trace-timeline-dot.pending {
-    border-color: #cbd5e1;
-    background: #ffffff;
-}
-
-.trace-timeline-content {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 12px 14px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
-    transition: transform 0.2s;
-}
-
-.trace-timeline-content.completed {
-    border-left: 3px solid var(--primary);
-}
-
-.trace-timeline-content.active {
-    border-left: 3px solid #3b82f6;
-    background: linear-gradient(to right, #eff6ff, #ffffff);
-}
-
-.trace-timeline-content.pending {
-    background: #fafafb;
-    opacity: 0.7;
-}
-
-.trace-timeline-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    gap: 6px;
-}
-
-.trace-timeline-title {
-    font-size: 13.5px;
+.trace-crypto-val-green {
+    color: #34d399;
     font-weight: 800;
-    color: var(--text-main);
 }
 
-.trace-step-badge-indicator {
-    font-size: 9px;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 20px;
-    text-transform: uppercase;
-}
-
-.trace-step-badge-indicator.completed {
-    background: #ecfdf5;
-    color: #065f46;
-}
-
-.trace-step-badge-indicator.active {
-    background: #eff6ff;
-    color: #1e40af;
-}
-
-.trace-step-badge-indicator.pending {
-    background: #f1f5f9;
-    color: #475569;
-}
-
-/* Timeline grid & details */
-.trace-step-main-title {
-    font-size: 13px;
-    font-weight: 700;
-    margin: 0 0 6px;
-}
-
-.trace-grid-details {
+/* Workers Pill */
+.trace-workers-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
 }
 
-.trace-detail-item {
-    font-size: 12px;
-}
-
-.trace-detail-lbl {
-    color: var(--text-muted);
-}
-
-.trace-detail-val {
-    color: var(--text-main);
-    font-weight: 600;
-}
-
-.trace-detail-val.highlight {
-    color: #059669;
-    font-weight: 700;
-}
-
-.trace-step-empty {
-    font-size: 11.5px;
-    color: var(--text-muted);
-    font-style: italic;
-    margin: 0;
-}
-
-.trace-step-sub-info {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin: 0;
-}
-
-/* Logs */
-.trace-logs-container {
+.trace-worker-pill {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.trace-log-item-card {
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
     background: #f8fafc;
     border: 1px solid #f1f5f9;
-    border-radius: 10px;
-    padding: 8px 10px;
-}
-
-.trace-log-item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.trace-log-item-activity {
-    font-size: 11.5px;
-    font-weight: 700;
-}
-
-.trace-log-item-date {
-    font-size: 10.5px;
-    color: var(--text-muted);
-}
-
-.trace-log-item-footer {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-
-.trace-log-images-grid {
-    display: flex;
-    gap: 4px;
-    margin-top: 6px;
-}
-
-.trace-log-image-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 2px 6px;
-    background: #e0f2fe;
-    color: #0369a1;
-    font-size: 10px;
-    font-weight: 600;
-    border-radius: 6px;
-    text-decoration: none;
-}
-
-.trace-toggle-logs-btn {
-    width: 100%;
-    margin-top: 8px;
-    padding: 6px;
-    background: #f1f5f9;
-    border: none;
     border-radius: 8px;
-    color: #475569;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
 }
 
-.trace-route-display {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #f8fafc;
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px dashed #cbd5e1;
-}
-
-.trace-route-node {
-    font-size: 11.5px;
-}
-
-.trace-result-pill {
-    display: inline-block;
-    padding: 1px 8px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.trace-result-pill.passed {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.trace-cert-detail-btn {
-    margin-top: 8px;
-    padding: 8px 12px;
-    background: var(--primary);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Right panel details */
-.trace-info-card {
-    background: var(--bg-card);
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    padding: 16px;
-    box-shadow: var(--shadow-sm);
-}
-
-.trace-info-card-title {
-    font-size: 13.5px;
-    font-weight: 800;
-    margin: 0 0 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.trace-workers-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.trace-worker-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.trace-worker-avatar {
+.trace-worker-avatar-box {
     width: 28px;
     height: 28px;
     border-radius: 50%;
     background: #ecfdf5;
-    color: #10b981;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
-.trace-worker-info {
+.trace-worker-details {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
 }
 
-.trace-worker-name {
-    font-size: 12.5px;
-    font-weight: 700;
-}
-
-.trace-worker-badge {
-    padding: 1px 6px;
+.trace-rep-badge {
+    padding: 2px 6px;
     background: #fef3c7;
     color: #b45309;
-    font-size: 8.5px;
+    border-radius: 8px;
+    font-size: 9px;
     font-weight: 800;
-    border-radius: 10px;
 }
 
-/* Inspection Badge Card */
-.trace-inspection-badge-card {
-    background: #ecfdf5;
-    border: 1px solid #a7f3d0;
-    border-radius: 20px;
-    padding: 16px;
+/* TX STREAM */
+.trace-tx-stream {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-}
-
-.trace-inspection-badge-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 800;
-    color: #065f46;
-}
-
-.trace-inspection-badge-body {
-    font-size: 12px;
-    color: #065f46;
-}
-
-.trace-cert-name {
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.trace-cert-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px 12px;
-    background: #047857;
-    color: #ffffff;
-    font-size: 12px;
-    font-weight: 700;
-    border-radius: 10px;
-    text-decoration: none;
-}
-
-/* Blockchain history styles */
-.trace-blockchain-card {
-    background: #0b0f19;
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    border-radius: 20px;
-    padding: 16px;
-}
-
-.trace-blockchain-title {
-    font-size: 13.5px;
-    font-weight: 800;
-    color: #10b981;
-    margin: 0 0 12px;
-    display: flex;
-    align-items: center;
     gap: 8px;
-}
-
-.trace-blockchain-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     max-height: 400px;
     overflow-y: auto;
 }
 
-.trace-blockchain-item {
-    background: rgba(17, 24, 39, 0.85);
+.trace-tx-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
     padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid #1f2937;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: 'JetBrains Mono', monospace;
 }
 
-.trace-blockchain-row {
+.trace-tx-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 4px;
 }
 
-.trace-blockchain-stage {
-    font-size: 11.5px;
-    font-weight: 800;
+.trace-tx-stage {
+    font-size: 11px;
+    font-weight: 700;
     color: #cbd5e1;
 }
 
-.trace-blockchain-status {
+.trace-tx-status {
     font-size: 9.5px;
-    color: #34d399;
     font-weight: 800;
+    color: #34d399;
 }
 
-.trace-blockchain-fn {
-    font-size: 10.5px;
+.trace-tx-fn-call {
+    font-size: 10px;
     color: #94a3b8;
-    margin: 2px 0 0;
+    margin-bottom: 5px;
 }
 
-.trace-blockchain-fn span {
+.trace-tx-fn-call strong {
     color: #fbbf24;
+    margin-left: 3px;
 }
 
-.trace-blockchain-tx-wrapper {
+.trace-tx-hash-box {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
     border-radius: 6px;
-    margin-top: 4px;
-    min-width: 0;
-    overflow: hidden;
+    margin-bottom: 4px;
 }
 
-.trace-blockchain-tx {
-    font-size: 10px;
-    color: #64748b;
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-}
-
-.trace-blockchain-hash {
+.trace-tx-hash-str {
     color: #60a5fa;
+    font-size: 10.5px;
 }
 
-.trace-copy-btn {
+.trace-copy-tx-btn {
     background: none;
     border: none;
     cursor: pointer;
+    padding: 2px;
     display: flex;
     align-items: center;
-    padding: 2px;
+    flex-shrink: 0;
 }
 
-.trace-blockchain-wallet {
-    font-size: 9.5px;
-    color: #64748b;
-    margin: 2px 0 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.trace-blockchain-wallet span {
-    color: #c084fc;
-}
-
-.trace-blockchain-footer {
+.trace-tx-footer-row {
     display: flex;
     justify-content: space-between;
-    font-size: 9px;
-    color: #4b5563;
-    margin-top: 4px;
+    align-items: center;
+    font-size: 9.5px;
+    color: #64748b;
 }
 
-/* Floating button */
-.trace-floating-qr {
+.trace-security-notice-card {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: var(--fc-radius-md);
+    padding: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+/* ─────── EMPTY / WELCOME BOX ─────── */
+.trace-welcome-box {
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    border-radius: var(--fc-radius-xl);
+    padding: 40px 24px;
+    text-align: center;
+    box-shadow: var(--fc-shadow-card);
+    max-width: 620px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.trace-welcome-icon-wrap {
+    width: 68px;
+    height: 68px;
+    border-radius: 18px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.trace-welcome-title {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--fc-slate-900);
+    margin: 0 0 8px;
+}
+
+.trace-welcome-desc {
+    font-size: 13.5px;
+    color: var(--fc-slate-600);
+    line-height: 1.6;
+    margin: 0 0 20px;
+}
+
+.trace-welcome-features {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    text-align: left;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.trace-welcome-feat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fc-slate-800);
+}
+
+/* Alerts & Loading */
+.trace-alert-box {
+    padding: 14px 16px;
+    border-radius: var(--fc-radius-md);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.trace-alert-box.error {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    color: #9f1239;
+}
+
+.trace-alert-content h4 {
+    font-size: 13.5px;
+    font-weight: 800;
+    margin: 0 0 2px;
+}
+
+.trace-alert-content p {
+    font-size: 12px;
+    margin: 0;
+}
+
+.trace-loading-card {
+    background: #ffffff;
+    border: 1px solid var(--fc-slate-200);
+    border-radius: var(--fc-radius-xl);
+    padding: 48px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--fc-shadow-card);
+    width: 100%;
+}
+
+.trace-empty-text {
+    font-size: 12px;
+    color: var(--fc-slate-500);
+    font-style: italic;
+    margin: 0;
+}
+
+/* Floating Action Button */
+.trace-fab-scan-btn {
     position: fixed;
     bottom: 24px;
     right: 24px;
     width: 56px;
     height: 56px;
     border-radius: 28px;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #ffffff;
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
     border: none;
-    outline: none;
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 100;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 45;
+    transition: all 0.3s ease;
 }
 
-.trace-floating-qr:hover {
-    transform: scale(1.08) rotate(90deg);
-}
-
-.trace-floating-qr:active {
-    transform: scale(0.95);
+.trace-fab-scan-btn:hover {
+    transform: scale(1.08);
 }
 
 @media (min-width: 1024px) {
-    .trace-floating-qr {
+    .trace-fab-scan-btn {
         display: none !important;
     }
 }
 
-/* General states */
-.trace-empty-state {
-    background: var(--bg-card);
-    padding: 40px 16px;
-    text-align: center;
-    border-radius: 24px;
-    border: 1px solid var(--border);
-    max-width: 500px;
-    margin: 20px auto;
-    box-shadow: var(--shadow-sm);
-}
-
-.trace-empty-state svg {
-    margin-bottom: 12px;
-}
-
-.trace-empty-state h2 {
-    font-size: 18px;
-    font-weight: 800;
-    margin: 0 0 8px;
-}
-
-.trace-empty-state p {
-    font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.5;
-}
-
-.trace-error {
-    padding: 10px 14px;
-    background: #fff1f2;
-    border: 1px solid #fecdd3;
-    color: #9f1239;
-    border-radius: 12px;
-    font-size: 12.5px;
-    font-weight: 600;
+/* Lightbox Modal */
+.trace-lightbox-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
+    justify-content: center;
+    padding: 16px;
+    z-index: 100;
 }
 
-.trace-loading {
-    background: var(--bg-card);
-    padding: 60px 16px;
-    text-align: center;
-    color: var(--text-muted);
-    border-radius: 24px;
-    border: 1px solid var(--border);
-    font-weight: 600;
-    font-size: 13px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    box-shadow: var(--shadow-sm);
+.trace-lightbox-content {
+    position: relative;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: #000000;
+    border-radius: var(--fc-radius-md);
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
-.trace-loading-spinner {
-    width: 32px;
-    height: 32px;
-    border: 3.5px solid #f1f5f9;
-    border-top-color: var(--primary);
+.trace-lightbox-img {
+    max-width: 100%;
+    max-height: 85vh;
+    object-fit: contain;
+    display: block;
+}
+
+.trace-lightbox-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    background: rgba(0, 0, 0, 0.6);
+    border: none;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* ─────── RESPONSIVE RULES FOR MOBILE ONLY (Chỉ áp dụng khi xem trên điện thoại, máy tính giữ nguyên 100%) ─────── */
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+        width: 100% !important;
+    }
+
+    .trace-app-root {
+        overflow-x: hidden !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .trace-navbar {
+        position: sticky;
+        top: 0;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .trace-nav-container {
+        padding: 10px 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-brand-link {
+        min-width: 0 !important;
+    }
+
+    .trace-brand-title {
+        font-size: 16px !important;
+    }
+
+    .trace-brand-sub {
+        display: none !important;
+    }
+
+    .trace-blockchain-badge-pill {
+        padding: 4px 8px !important;
+        font-size: 9.5px !important;
+    }
+
+    .trace-body-container {
+        padding: 12px 10px 80px !important;
+        gap: 14px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-result-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        gap: 14px !important;
+    }
+
+    .trace-search-hero-card {
+        padding: 16px 12px !important;
+        border-radius: var(--fc-radius-lg) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-main-heading {
+        font-size: 19px !important;
+    }
+
+    .trace-sub-heading {
+        font-size: 12px !important;
+    }
+
+    .trace-search-box-wrapper {
+        flex-direction: column !important;
+        padding: 4px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-input-inner {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-native-input {
+        width: 100% !important;
+        min-width: 0 !important;
+        font-size: 13px !important;
+    }
+
+    .trace-search-buttons-group {
+        width: 100% !important;
+        display: flex !important;
+        gap: 6px !important;
+    }
+
+    .trace-scan-qr-btn,
+    .trace-submit-btn {
+        flex: 1 !important;
+        padding: 9px 10px !important;
+        font-size: 12px !important;
+        justify-content: center !important;
+    }
+
+    .trace-product-hero-container {
+        padding: 12px !important;
+        border-radius: var(--fc-radius-lg) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    .trace-product-hero-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 14px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-product-media-column,
+    .trace-product-info-column {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-product-image-card {
+        aspect-ratio: 16/10 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .trace-product-title {
+        font-size: 19px !important;
+        word-break: break-word !important;
+    }
+
+    .trace-product-title-row {
+        width: 100% !important;
+        min-width: 0 !important;
+        gap: 6px !important;
+    }
+
+    .trace-code-copy-pill {
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-attributes-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-attr-item {
+        padding: 6px 8px !important;
+        min-width: 0 !important;
+        gap: 6px !important;
+    }
+
+    .trace-attr-icon {
+        width: 26px !important;
+        height: 26px !important;
+    }
+
+    .trace-attr-label {
+        font-size: 9px !important;
+    }
+
+    .trace-attr-val {
+        font-size: 11px !important;
+    }
+
+    /* Thanh tiến trình Stepper không được đẩy vỡ khung */
+    .trace-stepper-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        padding: 10px !important;
+    }
+
+    .trace-stepper-header {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-stepper-markers {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        justify-content: flex-start !important;
+        gap: 5px !important;
+        padding-bottom: 4px !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .trace-milestone-tag {
+        flex-shrink: 0 !important;
+        font-size: 9.5px !important;
+        padding: 2px 6px !important;
+    }
+
+    .trace-details-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 14px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-column-journey,
+    .trace-column-blockchain {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        gap: 14px !important;
+    }
+
+    .trace-card-section {
+        padding: 12px !important;
+        border-radius: var(--fc-radius-lg) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    .trace-timeline-flow {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-timeline-node {
+        padding-left: 32px !important;
+        padding-bottom: 18px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-node-badge {
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 10px !important;
+    }
+
+    .trace-node-connector {
+        left: 11px !important;
+    }
+
+    .trace-node-card {
+        padding: 10px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    .trace-node-header {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-node-title {
+        font-size: 12.5px !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    .trace-node-props-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 5px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-prop-box {
+        padding: 5px 7px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-prop-value {
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    .trace-harvest-photos-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .trace-route-card {
+        flex-direction: column !important;
+        gap: 6px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-crypto-badge-card {
+        padding: 12px !important;
+        border-radius: var(--fc-radius-lg) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-tx-card {
+        padding: 8px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-tx-hash-box {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .trace-tx-hash-str {
+        word-break: break-all !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .trace-attributes-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
+
+/* ─────── PRINT STYLES ─────── */
+@media print {
+    .trace-navbar,
+    .trace-search-hero-card,
+    .trace-fab-scan-btn,
+    .trace-map-link-btn,
+    .trace-cert-view-btn,
+    .trace-expand-logs-btn,
+    .trace-image-zoom-btn,
+    .trace-hero-thumb-strip {
+        display: none !important;
+    }
+    .trace-app-root {
+        background: #ffffff !important;
+        padding: 0 !important;
+    }
+    .trace-card-section,
+    .trace-product-hero-container {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+    }
 }
 
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
 `;
+
+export default TraceabilityPage;
