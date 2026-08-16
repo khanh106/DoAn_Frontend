@@ -5,6 +5,14 @@
       "destination": "http://160.25.81.121/api/:path*"
     },
     {
+      "source": "/uploads/:path*",
+      "destination": "http://160.25.81.121/uploads/:path*"
+    },
+    {
+      "source": "/avatars/:path*",
+      "destination": "http://160.25.81.121/avatars/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
