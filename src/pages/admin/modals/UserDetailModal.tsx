@@ -20,7 +20,8 @@ import {
     Award,
     FileText,
     ExternalLink,
-    RefreshCw
+    RefreshCw,
+    Trash2
 } from 'lucide-react';
 import { apiClient } from '../../../services/api';
 
@@ -81,7 +82,7 @@ interface UserDetailModalProps {
     isOpen: boolean;
     user: UserAccountResponse | null;
     onClose: () => void;
-    onOpenActionModal?: (action: 'APPROVE' | 'LOCK' | 'WHITELIST' | 'ROLE') => void;
+    onOpenActionModal?: (action: 'APPROVE' | 'LOCK' | 'WHITELIST' | 'ROLE' | 'DELETE') => void;
 }
 
 export const UserDetailModal: React.FC<UserDetailModalProps> = ({
@@ -200,9 +201,18 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({
                                         onClose();
                                         onOpenActionModal('LOCK');
                                     }}
-                                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                                    className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer transition-colors"
                                 >
                                     <Lock className="w-3.5 h-3.5" /> Khóa / Mở khóa
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        onClose();
+                                        onOpenActionModal('DELETE');
+                                    }}
+                                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" /> Xóa tài khoản
                                 </button>
                             </>
                         )}

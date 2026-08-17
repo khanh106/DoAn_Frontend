@@ -18,6 +18,7 @@ import {
     Lock,
     UserCog,
     Eye,
+    Trash2,
 } from 'lucide-react';
 
 // Modals
@@ -27,6 +28,7 @@ import { LockUserModal } from './modals/LockUserModal';
 import { BlockchainWhitelistModal } from './modals/BlockchainWhitelistModal';
 import { ChangeRoleModal } from './modals/ChangeRoleModal';
 import { UserDetailModal } from './modals/UserDetailModal';
+import { DeleteUserModal } from './modals/DeleteUserModal';
 import { toast } from '../../utils/toast';
 export interface UserAccountResponse {
     id: string;
@@ -60,7 +62,7 @@ export const AccountManagementPage: React.FC = () => {
     // Modal Control State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserAccountResponse | null>(null);
-    const [activeModal, setActiveModal] = useState<'APPROVE' | 'LOCK' | 'WHITELIST' | 'ROLE' | 'DETAIL' | null>(null);
+    const [activeModal, setActiveModal] = useState<'APPROVE' | 'LOCK' | 'WHITELIST' | 'ROLE' | 'DETAIL' | 'DELETE' | null>(null);
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
     // KẾT NỐI API LẤY USER THỰC TẾ
@@ -371,9 +373,20 @@ export const AccountManagementPage: React.FC = () => {
                                         setActiveModal('LOCK');
                                         setActiveMenuId(null);
                                     }}
-                                    className="w-full px-3 py-2 text-red-600 hover:bg-red-50 flex items-center gap-2 font-semibold border-t border-slate-100 cursor-pointer"
+                                    className="w-full px-3 py-2 text-amber-700 hover:bg-amber-50 flex items-center gap-2 font-semibold border-t border-slate-100 cursor-pointer"
                                 >
                                     <Lock className="w-3.5 h-3.5" /> Khóa / Mở khóa
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setSelectedUser(item);
+                                        setActiveModal('DELETE');
+                                        setActiveMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-red-600 hover:bg-red-50 flex items-center gap-2 font-semibold border-t border-slate-100 cursor-pointer"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" /> Xóa tài khoản
                                 </button>
                             </div>
                         </>
@@ -532,6 +545,16 @@ export const AccountManagementPage: React.FC = () => {
                 onOpenActionModal={(action) => {
                     setActiveModal(action);
                 }}
+            />
+
+            <DeleteUserModal
+                isOpen={activeModal === 'DELETE'}
+                user={selectedUser}
+                onClose={() => {
+                    setActiveModal(null);
+                    setSelectedUser(null);
+                }}
+                onSuccess={fetchUsers}
             />
 
         </div>
