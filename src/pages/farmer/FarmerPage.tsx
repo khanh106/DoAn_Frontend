@@ -13,6 +13,7 @@ import {
     type AssignedBatch,
     type CultivationLog,
 } from '../../services/farmerService';
+import { compressImages } from '../../utils/imageCompressor';
 import { toast } from '../../utils/toast';
 import {
     RefreshCw,
@@ -184,7 +185,8 @@ export const FarmerPage: React.FC = () => {
             formData.append('Description', description);
             formData.append('LogDate', logDate);
 
-            selectedFiles.forEach((file) => {
+            const finalFiles = await compressImages(selectedFiles);
+            finalFiles.forEach((file) => {
                 formData.append('Images', file);
             });
 
@@ -644,7 +646,11 @@ export const FarmerPage: React.FC = () => {
                             type="file"
                             multiple
                             accept="image/*"
-                            onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))}
+                            onChange={async (e) => {
+                                const files = Array.from(e.target.files || []);
+                                const compressed = await compressImages(files);
+                                setSelectedFiles(compressed);
+                            }}
                             className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-700"
                         />
                         {selectedFiles.length > 0 && (

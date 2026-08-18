@@ -25,6 +25,7 @@ import { AppTabs, type TabItem } from '../../components/ui/AppTabs';
 import { AppModal } from '../../components/ui/AppModal';
 import { retailerService, type ShipmentHistoryDto } from '../../services/retailerService';
 import { useNavigate } from 'react-router-dom';
+import { getPublicTraceUrl } from '../../utils/traceUrl';
 import { toast } from '../../utils/toast';
 
 export const RetailerDashboardPage: React.FC = () => {
@@ -558,7 +559,7 @@ export const RetailerDashboardPage: React.FC = () => {
                         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
                             <img
                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                                    `${window.location.origin}/trace/${getBatchCode(selectedShipmentForQr)}`
+                                    getPublicTraceUrl(getBatchCode(selectedShipmentForQr))
                                 )}`}
                                 alt="QR Code"
                                 className="w-48 h-48 mx-auto"
@@ -580,9 +581,9 @@ export const RetailerDashboardPage: React.FC = () => {
                                 <span>Liên kết quét tem trực tiếp:</span>
                             </div>
                             <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-emerald-200 text-[11px] font-mono break-all gap-2">
-                                <span className="truncate">{`${window.location.origin}/trace/${getBatchCode(selectedShipmentForQr)}`}</span>
+                                <span className="truncate">{getPublicTraceUrl(getBatchCode(selectedShipmentForQr))}</span>
                                 <button
-                                    onClick={() => handleCopyHash(`${window.location.origin}/trace/${getBatchCode(selectedShipmentForQr)}`)}
+                                    onClick={() => handleCopyHash(getPublicTraceUrl(getBatchCode(selectedShipmentForQr)))}
                                     className="p-1 text-emerald-700 hover:bg-emerald-100 rounded cursor-pointer shrink-0 inline-flex items-center justify-center"
                                 >
                                     <Copy className="w-3.5 h-3.5 shrink-0" />

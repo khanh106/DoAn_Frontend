@@ -13,6 +13,7 @@ import {
     type CultivationLog,
 } from '../../services/farmerService';
 import { resolveIpfsUrl } from '../../services/ipfsService';
+import { compressImages } from '../../utils/imageCompressor';
 import { toast } from '../../utils/toast';
 
 import {
@@ -147,14 +148,22 @@ export const FarmerLogsPage: React.FC = () => {
         }
     }, [fetchLogs, batches]);
 
-    // Xử lý chọn tệp ảnh & preview
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
+    // Xử lý chọn tệp ảnh & preview (tự động nén ảnh)
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
             const filesArray = Array.from(e.target.files);
-            setFormFiles((prev) => [...prev, ...filesArray]);
-
-            const newPreviewUrls = filesArray.map((file) => URL.createObjectURL(file));
-            setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
+            try {
+                const compressed = await compressImages(filesArray);
+                setFormFiles((prev) => [...prev, ...compressed]);
+                const newPreviewUrls = compressed.map((file) => URL.createObjectURL(file));
+                setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
+            } catch {
+                setFormFiles((prev) => [...prev, ...filesArray]);
+                const newPreviewUrls = filesArray.map((file) => URL.createObjectURL(file));
+                setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
+            } finally {
+                e.target.value = '';
+            }
         }
     };
 
@@ -208,7 +217,9 @@ export const FarmerLogsPage: React.FC = () => {
             formData.append('ActivityType', formActivityType);
             formData.append('Description', formDescription);
             formData.append('LogDate', formLogDate);
-            formFiles.forEach((file) => {
+
+            const finalFiles = await compressImages(formFiles);
+            finalFiles.forEach((file) => {
                 formData.append('Images', file);
             });
 

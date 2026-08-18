@@ -13,6 +13,7 @@ import {
     type AssignedBatch,
     type CultivationLog,
 } from '../../services/farmerService';
+import { compressImages } from '../../utils/imageCompressor';
 import { toast } from '../../utils/toast';
 import {
     RefreshCw,
@@ -173,15 +174,26 @@ export const FarmerMobilePage: React.FC = () => {
         }
     };
 
-    // Hàm xử lý chọn/chụp file thực địa (cộng dồn ảnh vào danh sách)
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
+    // Hàm xử lý chọn/chụp file thực địa (tự động nén ảnh chụp điện thoại và cộng dồn)
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
             const filesArray = Array.from(e.target.files);
-            setSelectedFiles((prev) => [...prev, ...filesArray]);
+            try {
+                // Tự động nén ảnh từ 5-15MB xuống ~300KB
+                const compressedFiles = await compressImages(filesArray);
+                setSelectedFiles((prev) => [...prev, ...compressedFiles]);
 
-            // Tạo link xem trước (preview) tạm thời
-            const newPreviews = filesArray.map(file => URL.createObjectURL(file));
-            setPreviewUrls((prev) => [...prev, ...newPreviews]);
+                // Tạo link xem trước (preview) tạm thời
+                const newPreviews = compressedFiles.map((file) => URL.createObjectURL(file));
+                setPreviewUrls((prev) => [...prev, ...newPreviews]);
+            } catch {
+                setSelectedFiles((prev) => [...prev, ...filesArray]);
+                const newPreviews = filesArray.map((file) => URL.createObjectURL(file));
+                setPreviewUrls((prev) => [...prev, ...newPreviews]);
+            } finally {
+                // Reset input để có thể chụp tiếp cùng 1 chế độ
+                e.target.value = '';
+            }
         }
     };
 
@@ -213,7 +225,9 @@ export const FarmerMobilePage: React.FC = () => {
             formData.append('Description', description);
             formData.append('LogDate', logDate);
 
-            selectedFiles.forEach((file) => {
+            // Đảm bảo tất cả file đều đã được tối ưu
+            const finalFiles = await compressImages(selectedFiles);
+            finalFiles.forEach((file) => {
                 formData.append('Images', file);
             });
 

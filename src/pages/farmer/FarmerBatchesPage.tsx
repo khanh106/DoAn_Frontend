@@ -13,6 +13,7 @@ import {
     type AssignedBatch,
     type CultivationLog,
 } from '../../services/farmerService';
+import { compressImages } from '../../utils/imageCompressor';
 import { toast } from '../../utils/toast';
 import {
     RefreshCw,
@@ -157,7 +158,9 @@ export const FarmerBatchesPage: React.FC = () => {
             formData.append('ActivityType', activityType);
             formData.append('Description', description);
             formData.append('LogDate', logDate);
-            selectedFiles.forEach((file) => formData.append('Images', file));
+
+            const finalFiles = await compressImages(selectedFiles);
+            finalFiles.forEach((file) => formData.append('Images', file));
 
             await farmerService.createCultivationLog(logBatchId, formData);
             toast.success('Đã ghi nhận nhật ký canh tác thành công!');
@@ -453,6 +456,25 @@ export const FarmerBatchesPage: React.FC = () => {
                             required
                             className="w-full px-3 py-2 border rounded-xl text-xs font-medium"
                         />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Đính Kèm Ảnh Thực Địa (Tự động nén & Upload IPFS)</label>
+                        <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={async (e) => {
+                                const files = Array.from(e.target.files || []);
+                                const compressed = await compressImages(files);
+                                setSelectedFiles(compressed);
+                            }}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-700"
+                        />
+                        {selectedFiles.length > 0 && (
+                            <p className="text-[11px] font-bold text-emerald-600 mt-1">
+                                Đã chọn {selectedFiles.length} tệp ảnh (đã nén tối ưu).
+                            </p>
+                        )}
                     </div>
                     <div className="flex justify-end gap-2 pt-3 border-t">
                         <AppButton variant="outline" type="button" onClick={() => setIsLogModalOpen(false)}>Hủy</AppButton>

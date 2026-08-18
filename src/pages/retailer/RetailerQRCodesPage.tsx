@@ -38,6 +38,7 @@ import {
     type RetailerQualityRecord
 } from '../../services/retailerService';
 import { type QRCodeInfoDto } from '../../services/shippingAndQrService';
+import { getPublicTraceUrl } from '../../utils/traceUrl';
 import { toast } from '../../utils/toast';
 
 export const RetailerQRCodesPage: React.FC = () => {
@@ -258,7 +259,7 @@ export const RetailerQRCodesPage: React.FC = () => {
             align: 'center',
             render: (item) => {
                 const code = item.subBatchCode || item.batchCode || item.shippingCode;
-                const traceUrl = `${window.location.origin}/trace/${code}`;
+                const traceUrl = getPublicTraceUrl(code);
                 return (
                     <div className="flex flex-col items-center justify-center gap-1">
                         <button
@@ -393,7 +394,7 @@ export const RetailerQRCodesPage: React.FC = () => {
             align: 'center',
             render: (item) => {
                 const qrValue = item.subBatchCode || item.batchCode || item.shippingCode;
-                const traceUrl = `${window.location.origin}/trace/${qrValue}`;
+                const traceUrl = getPublicTraceUrl(qrValue);
                 return (
                     <div className="flex items-center justify-center gap-1.5">
                         {/* 1. Xem ảnh QR to */}
@@ -889,7 +890,7 @@ export const RetailerQRCodesPage: React.FC = () => {
 
                                                 <div className="flex flex-col items-center justify-center shrink-0 bg-slate-50 p-1 rounded-lg border border-slate-100">
                                                     <QRCodeSVG
-                                                        value={`${window.location.origin}/trace/${code}`}
+                                                        value={getPublicTraceUrl(code)}
                                                         size={batchPrintPaper === 'A4_12' ? 60 : 45}
                                                         level="M"
                                                         includeMargin={false}
@@ -957,7 +958,7 @@ export const RetailerQRCodesPage: React.FC = () => {
 
                                     <div className="flex flex-col items-center justify-center shrink-0 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
                                         <QRCodeSVG
-                                            value={`${window.location.origin}/trace/${printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode}`}
+                                            value={getPublicTraceUrl(printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode)}
                                             size={60}
                                             level="M"
                                             includeMargin={false}
@@ -1005,7 +1006,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                                         <div className="flex flex-col items-center justify-center bg-slate-50 p-2 rounded-xl border border-slate-200 shrink-0">
                                             <div className="bg-white p-1 rounded-lg border border-slate-100">
                                                 <QRCodeSVG
-                                                    value={`${window.location.origin}/trace/${printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode}`}
+                                                    value={getPublicTraceUrl(printModalShipment.subBatchCode || printModalShipment.batchCode || printModalShipment.shippingCode)}
                                                     size={80}
                                                     level="H"
                                                     includeMargin={false}
@@ -1078,7 +1079,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                 >
                     {(() => {
                         const code = viewQrShipment.subBatchCode || viewQrShipment.batchCode || viewQrShipment.shippingCode;
-                        const traceUrl = `${window.location.origin}/trace/${code}`;
+                        const traceUrl = getPublicTraceUrl(code);
                         return (
                             <div className="space-y-4 text-center">
                                 {/* Khung Hiển Thị Ảnh QR Code */}

@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { compressImage } from '../utils/imageCompressor';
 
 export interface AssignedBatch {
     batchId: string;
@@ -102,8 +103,21 @@ export const farmerService = {
         return response.data;
     },
 
-    // 3. Ghi nhật ký canh tác (Form Data có hỗ trợ upload tệp ảnh)
+    // 3. Ghi nhật ký canh tác (Tự động nén ảnh chụp và upload Multipart Form)
     createCultivationLog: async (batchId: string, formData: FormData): Promise<CultivationLog> => {
+        const images = formData.getAll('Images');
+        if (images.length > 0) {
+            formData.delete('Images');
+            for (const item of images) {
+                if (item instanceof File) {
+                    const compressed = await compressImage(item);
+                    formData.append('Images', compressed);
+                } else {
+                    formData.append('Images', item);
+                }
+            }
+        }
+
         const response = await apiClient.post<CultivationLog>(
             `/v1/farmer/batches/${batchId}/logs`,
             formData,
