@@ -30,6 +30,7 @@ import { CreateShipmentModal } from './modals/CreateShipmentModal';
 import { GenerateQRCodeModal } from './modals/GenerateQRCodeModal';
 import { QRCodeDetailModal } from './modals/QRCodeDetailModal';
 import { AxiosError } from 'axios';
+import { normalizeTraceUrl } from '../../utils/traceUrl';
 import { toast } from '../../utils/toast';
 
 export type QRCodeShippingTab = 'SHIPMENT' | 'RETAILER' | 'INSPECTION' | 'QRCODE';
@@ -405,21 +406,24 @@ export const QRCodeAndShippingPage: React.FC = () => {
         {
             header: 'Giá trị QR / URL truy xuất',
             key: 'qrValue',
-            render: (item) => (
-                <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-slate-700 truncate max-w-xs">{item.qrValue}</span>
-                    <button
-                        onClick={() => {
-                            void navigator.clipboard.writeText(item.qrValue);
-                            toast.success('📋 Đã sao chép liên kết mã QR!');
-                        }}
-                        className="p-1 hover:bg-slate-100 text-slate-500 rounded-md cursor-pointer"
-                        title="Sao chép"
-                    >
-                        <Copy className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            ),
+            render: (item) => {
+                const url = normalizeTraceUrl(item.qrValue);
+                return (
+                    <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-slate-700 truncate max-w-xs">{url}</span>
+                        <button
+                            onClick={() => {
+                                void navigator.clipboard.writeText(url);
+                                toast.success('📋 Đã sao chép liên kết mã QR!');
+                            }}
+                            className="p-1 hover:bg-slate-100 text-slate-500 rounded-md cursor-pointer"
+                            title="Sao chép"
+                        >
+                            <Copy className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                );
+            },
         },
         {
             header: 'Trạng thái',

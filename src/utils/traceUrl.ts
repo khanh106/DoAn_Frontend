@@ -33,3 +33,31 @@ export const getPublicTraceUrl = (code: string): string => {
     if (!code || !code.trim()) return base;
     return `${base}/${encodeURIComponent(code.trim())}`;
 };
+
+/**
+ * Chuẩn hóa bất kỳ chuỗi URL nào (kể cả URL cũ đã lưu `localhost` trong CSDL)
+ * thành URL trỏ vào VPS/Domain hiện tại.
+ */
+export const normalizeTraceUrl = (urlOrCode: string | undefined | null): string => {
+    if (!urlOrCode || !urlOrCode.trim()) return getPublicTraceBaseUrl();
+    const str = urlOrCode.trim();
+
+    // Nếu đã là dạng URL (http://... hoặc https://...)
+    if (str.startsWith('http://') || str.startsWith('https://')) {
+        try {
+            const parsed = new URL(str);
+            const base = getPublicTraceBaseUrl();
+            // Lấy phần path và query params sau /trace
+            const pathSuffix = parsed.pathname.startsWith('/trace')
+                ? parsed.pathname.replace(/^\/trace/, '')
+                : parsed.pathname;
+            return `${base}${pathSuffix}${parsed.search}`;
+        } catch {
+            return str;
+        }
+    }
+
+    // Nếu chỉ là mã Code (ví dụ: BATCH-001 hoặc GUID)
+    return getPublicTraceUrl(str);
+};
+

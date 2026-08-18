@@ -11,6 +11,7 @@ import {
 import { QRCodeCanvas } from 'qrcode.react';
 import { type QRCodeInfoDto } from '../../../services/shippingAndQrService';
 import { type BatchDto } from '../../../services/processorService';
+import { normalizeTraceUrl } from '../../../utils/traceUrl';
 import { toast } from '../../../utils/toast';
 
 interface Props {
@@ -21,9 +22,10 @@ interface Props {
 
 export const QRCodeDetailModal: React.FC<Props> = ({ qr, batch, onClose }) => {
     const [copied, setCopied] = useState<boolean>(false);
+    const finalQrUrl = normalizeTraceUrl(qr.qrValue);
 
     const handleCopy = () => {
-        void navigator.clipboard.writeText(qr.qrValue);
+        void navigator.clipboard.writeText(finalQrUrl);
         setCopied(true);
         toast.success('📋 Đã sao chép liên kết mã QR vào bộ nhớ tạm!');
         setTimeout(() => setCopied(false), 2000);
@@ -92,7 +94,7 @@ export const QRCodeDetailModal: React.FC<Props> = ({ qr, batch, onClose }) => {
                             <div className="p-2 bg-white rounded-lg shadow-2xs border border-slate-200 inline-block">
                                 <QRCodeCanvas
                                     id="qr-detail-canvas"
-                                    value={qr.qrValue}
+                                    value={finalQrUrl}
                                     size={150}
                                     level="H"
                                     marginSize={2}
@@ -124,7 +126,7 @@ export const QRCodeDetailModal: React.FC<Props> = ({ qr, batch, onClose }) => {
                                     <span>{copied ? 'Đã sao chép' : 'Sao chép liên kết'}</span>
                                 </button>
                                 <a
-                                    href={qr.qrValue}
+                                    href={finalQrUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="w-full py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-bold text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
@@ -172,7 +174,7 @@ export const QRCodeDetailModal: React.FC<Props> = ({ qr, batch, onClose }) => {
                                 <div>
                                     <span className="text-slate-500 font-medium block mb-1">URL quét mã truy xuất:</span>
                                     <div className="p-2 bg-white border border-slate-200 rounded-lg font-mono text-[11px] text-slate-700 break-all select-all max-h-20 overflow-y-auto">
-                                        {qr.qrValue}
+                                        {finalQrUrl}
                                     </div>
                                 </div>
                             </div>
