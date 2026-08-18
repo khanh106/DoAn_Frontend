@@ -18,11 +18,11 @@ export const getPublicTraceBaseUrl = (): string => {
     }
 
     // 3. Fallback theo window.location.origin
-    if (typeof window !== 'undefined' && window.location?.origin) {
+    if (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('localhost')) {
         return `${window.location.origin}/trace`;
     }
 
-    return 'http://localhost:5173/trace';
+    return 'https://fruitchain.vercel.app/trace';
 };
 
 /**
