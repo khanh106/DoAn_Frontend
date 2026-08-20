@@ -65,10 +65,8 @@ export const RetailerQRCodesPage: React.FC = () => {
     const [traceData, setTraceData] = useState<any | null>(null);
     const [traceLoading, setTraceLoading] = useState<boolean>(false);
 
-    // QR View Modal (Xem QR tạo sẵn từ HTX)
+    // QR View Modal
     const [viewQrShipment, setViewQrShipment] = useState<ShipmentHistoryDto | null>(null);
-    const [viewQrCodes, setViewQrCodes] = useState<QRCodeInfoDto[]>([]);
-    const [viewQrLoading, setViewQrLoading] = useState<boolean>(false);
 
     // Web Scanner Tab State
     const [scanInputCode, setScanInputCode] = useState<string>('');
@@ -154,21 +152,9 @@ export const RetailerQRCodesPage: React.FC = () => {
         }
     };
 
-    // Lấy danh sách QR code đã tạo sẵn từ HTX cho vận đơn
-    const handleViewExistingQr = async (shipment: ShipmentHistoryDto) => {
+    // Xem chi tiết mã QR của vận đơn
+    const handleViewExistingQr = (shipment: ShipmentHistoryDto) => {
         setViewQrShipment(shipment);
-        setViewQrLoading(true);
-        setViewQrCodes([]);
-        try {
-            const codes = await retailerService.getQrCodesForShipment(shipment.id);
-            setViewQrCodes(Array.isArray(codes) ? codes : []);
-        } catch (err) {
-            const errorObj = err as AxiosError<{ message?: string }>;
-            console.error('Lỗi lấy QR codes:', errorObj);
-            setViewQrCodes([]);
-        } finally {
-            setViewQrLoading(false);
-        }
     };
 
     // Quét & tra cứu mã QR thực tế qua Backend API
@@ -327,34 +313,15 @@ export const RetailerQRCodesPage: React.FC = () => {
             }
         },
         {
-            header: 'TRỌNG LƯỢNG & GIÁ KỆ',
-            key: 'shelfPrice',
-            render: (item) => {
-                const config = shelfConfigs?.[item.id];
-                return (
-                    <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-extrabold text-slate-900 text-xs">
-                                {item.weight.toLocaleString('vi-VN')} kg
-                            </span>
-                            {config?.unitPriceVnd ? (
-                                <span className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-800 text-xs font-black rounded-lg border border-emerald-200">
-                                    <Tag className="w-3 h-3 mr-1 text-emerald-600 shrink-0" />
-                                    {config.unitPriceVnd.toLocaleString('vi-VN')} đ/kg
-                                </span>
-                            ) : (
-                                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                    Chưa cài giá
-                                </span>
-                            )}
-                        </div>
-                        <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
-                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>Kệ: <strong className="text-slate-700">{config?.shelfLocation || 'Chưa gán kệ'}</strong></span>
-                        </span>
-                    </div>
-                );
-            }
+            header: 'TRỌNG LƯỢNG',
+            key: 'weight',
+            render: (item) => (
+                <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-slate-900 text-sm">
+                        {item.weight.toLocaleString('vi-VN')} kg
+                    </span>
+                </div>
+            )
         },
         {
             header: 'TRẠNG THÁI & KIỂM ĐỊNH',
@@ -884,7 +851,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                                                         {config?.unitPriceVnd ? `${config.unitPriceVnd.toLocaleString('vi-VN')} đ/kg` : 'Chưa cài giá'}
                                                     </div>
                                                     <div className="text-[8px] text-slate-400">
-                                                        TL: {item.weight} kg | Kệ: {config?.shelfLocation || 'Kho'}
+                                                        TL: {item.weight} kg
                                                     </div>
                                                 </div>
 
@@ -1017,7 +984,7 @@ export const RetailerQRCodesPage: React.FC = () => {
                                     </div>
 
                                     <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex items-center justify-between text-[8px] font-semibold text-slate-500">
-                                        <span>Kệ hàng: {shelfConfigs[printModalShipment.id]?.shelfLocation || 'Khu Trưng Bày'}</span>
+                                        <span>Sản phẩm đạt chuẩn VietGAP</span>
                                         <span className="font-mono text-emerald-700">On-Chain QR Code</span>
                                     </div>
                                 </div>
@@ -1155,52 +1122,6 @@ export const RetailerQRCodesPage: React.FC = () => {
                                         </button>
                                     </div>
                                 </div>
-
-                                {/* Danh sách QR phụ nếu HTX cấp */}
-                                {viewQrLoading ? (
-                                    <div className="py-4 flex items-center justify-center gap-2 text-xs text-slate-500">
-                                        <RefreshCw className="w-4 h-4 animate-spin text-purple-600 shrink-0" />
-                                        <span>Đang kiểm tra các mã QR định danh khác từ HTX...</span>
-                                    </div>
-                                ) : viewQrCodes.length > 0 ? (
-                                    <div className="space-y-2 text-left pt-2 border-t border-slate-200">
-                                        <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                                            <BadgeCheck className="w-4 h-4 text-purple-600 shrink-0" />
-                                            <span>Mã định danh QR phụ từ HTX ({viewQrCodes.length})</span>
-                                        </div>
-                                        <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
-                                            {viewQrCodes.map((qr) => (
-                                                <div key={qr.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs gap-2">
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-1.5 mb-0.5">
-                                                            <AppBadge variant={qr.targetType === 'SUBBATCH' ? 'purple' : 'blue'}>
-                                                                {qr.targetType}
-                                                            </AppBadge>
-                                                            <span className="text-[10px] text-slate-400">
-                                                                {new Date(qr.createdAt).toLocaleDateString('vi-VN')}
-                                                            </span>
-                                                        </div>
-                                                        <div className="font-mono text-[11px] text-slate-700 truncate">{qr.qrValue}</div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleCopy(qr.qrValue, qr.id)}
-                                                            className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-slate-200 rounded cursor-pointer inline-flex items-center justify-center"
-                                                            title="Sao chép mã"
-                                                        >
-                                                            {copiedId === qr.id ? (
-                                                                <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
-                                                            ) : (
-                                                                <Copy className="w-3.5 h-3.5 shrink-0" />
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : null}
                             </div>
                         );
                     })()}
